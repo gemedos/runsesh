@@ -6,8 +6,8 @@ import { getActiveCompetition, getPartyMembers } from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
 import { todayISO } from '../../util/date.js';
 import { circusHeader, competitionMeta, standingsList } from '../competitionBlock.js';
-import { avatarBadge, card, formatSteps, rankBadge } from '../components.js';
-import { h, onMount } from '../dom.js';
+import { avatarBadge, card, formatSteps, rankedAvatar } from '../components.js';
+import { h, onMount, s } from '../dom.js';
 import { iosInstallHint } from '../installHint.js';
 
 const TRACK_WIDTH = 1600;
@@ -29,6 +29,7 @@ export async function renderRace({ state, steps }) {
   return h('div', { class: 'page page-race' },
     iosInstallHint(),
     partyBar(state, members),
+    myStepsHero(stepsById[state.meId] || 0),
     trackCard(members, ranking, goal),
     dailyRankingCard(members, ranking, goal),
     competitionCard(competition, standings, members, today),
@@ -43,6 +44,16 @@ function partyBar(state, members) {
         avatarBadge(m.avatar, { size: 'md' }),
         h('span', { class: 'party-member-name', text: m.name }),
       )),
+    ),
+  );
+}
+
+function myStepsHero(mySteps) {
+  return h('section', { class: 'steps-hero' },
+    h('span', { class: 'steps-hero-number', text: formatSteps(mySteps) }),
+    h('span', { class: 'steps-hero-label', text: T.yourSteps }),
+    s('svg', { class: 'squiggle', viewBox: '0 0 130 12', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': 3, 'stroke-linecap': 'round' },
+      s('path', { d: 'M3 6 Q11 0 19 6 T35 6 T51 6 T67 6 T83 6 T99 6 T115 6 T127 6' }),
     ),
   );
 }
@@ -130,13 +141,12 @@ function dailyRankingCard(members, ranking, goal) {
         const fill = h('span', { class: 'progress-fill' });
         fill.style.width = `${Math.min(100, (row.value / goal) * 100)}%`;
         return h('li', { class: `rank-row${m.isMe ? ' rank-row--me' : ''}` },
-          rankBadge(row.rank),
-          avatarBadge(m.avatar, { size: 'sm' }),
+          rankedAvatar(m.avatar, row.rank),
           h('span', { class: 'rank-main' },
             h('span', { class: 'rank-name', text: m.name }),
             h('span', { class: 'progress', attrs: { 'aria-hidden': 'true' } }, fill),
           ),
-          h('span', { class: 'rank-score', text: formatSteps(row.value) }),
+          h('span', { class: 'rank-score', text: STRINGS.common.steps(formatSteps(row.value)) }),
         );
       }),
     ),

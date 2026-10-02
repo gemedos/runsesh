@@ -70,7 +70,7 @@ test('buildAvatarSvg falls back to the default for invalid input', () => {
 });
 
 test('head crop uses the close-up viewBox', () => {
-  eq(buildAvatarSvg(good, { crop: true }).getAttribute('viewBox'), '46 8 108 108');
+  eq(buildAvatarSvg(good, { crop: true }).getAttribute('viewBox'), '70 8 76 76');
 });
 
 test('golden preview ignores unknown ids', () => {

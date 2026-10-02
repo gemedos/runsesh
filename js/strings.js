@@ -21,6 +21,11 @@ export const STRINGS = Object.freeze({
     notConnectedDefault: 'This screen shows mock data. Nothing is saved to an account.',
     comingLater: 'Coming later',
     rank: (n) => `Rank ${n}`,
+    ordinal: (n) => {
+      const mod100 = n % 100;
+      const suffix = mod100 >= 11 && mod100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+      return `${n}${suffix}`;
+    },
     steps: (n) => `${n} steps`,
   },
 
@@ -43,7 +48,8 @@ export const STRINGS = Object.freeze({
     trackTick: (k) => `${k}k`,
     goal: (n) => `Goal ${n}`,
     runnerLabel: (name, steps) => `${name}: ${steps} steps today`,
-    todayTitle: 'Today',
+    todayTitle: 'Rankings',
+    yourSteps: 'Your steps today',
   },
 
   competition: {
@@ -97,6 +103,8 @@ export const STRINGS = Object.freeze({
     customize: 'Customize your avatar',
     yourAvatar: 'Your avatar',
     tapToCustomize: 'Tap to customize',
+    customizeButton: 'Customize avatar',
+    darkTheme: 'Dark theme',
     groupParty: 'PARTY',
     groupSettings: 'SETTINGS',
     partySettings: 'Party settings',
@@ -134,11 +142,11 @@ export const STRINGS = Object.freeze({
     h_bob: 'Bob', h_ponytail: 'Ponytail', h_bun: 'Bun', h_curly: 'Curly', h_mohawk: 'Mohawk',
     hc_black: 'Black', hc_brown: 'Brown', hc_auburn: 'Auburn', hc_blonde: 'Blonde',
     hc_grey: 'Grey', hc_blue: 'Blue', hc_pink: 'Pink', hc_green: 'Green',
-    t_tee: 'T-shirt', t_tank: 'Tank top', t_jersey: 'Striped jersey', t_hoodie: 'Hoodie',
+    t_tee: 'T-shirt', t_tank: 'Tank top', t_jersey: 'Knit sweater', t_hoodie: 'Hoodie',
     t_jacket: 'Jacket', t_singlet: 'Race singlet', t_tracksuit: 'Tracksuit',
     b_shorts: 'Shorts', b_runshorts: 'Running shorts', b_leggings: 'Leggings',
     b_joggers: 'Joggers', b_skirt: 'Skirt',
-    s_none: 'Barefoot', s_runner: 'Red runners', s_white: 'White trainers',
+    s_none: 'Barefoot', s_runner: 'Green runners', s_white: 'White trainers',
     s_blue: 'Blue runners', s_pink: 'Pink runners',
     a_none: 'None', a_cap: 'Cap', a_headband: 'Headband', a_sunglasses: 'Sunglasses',
     a_glasses: 'Glasses', a_headphones: 'Headphones', a_scarf: 'Scarf', a_medal: 'Medal',

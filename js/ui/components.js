@@ -26,8 +26,17 @@ export function avatarBadge(avatar, { size = 'md', label } = {}) {
 
 const RANK_CLASS = { 1: 'rank--gold', 2: 'rank--silver', 3: 'rank--copper' };
 
+/** Rank sticker: a starburst with "1st"/"2nd"/"3rd" in gold/silver/copper, a small chip otherwise. */
 export function rankBadge(rank) {
-  return h('span', { class: `rank ${RANK_CLASS[rank] || 'rank--plain'}`, attrs: { 'aria-label': STRINGS.common.rank(rank) } }, String(rank));
+  const medal = RANK_CLASS[rank];
+  return h('span', { class: `rank ${medal || 'rank--plain'}`, attrs: { 'aria-label': STRINGS.common.rank(rank) } },
+    medal ? h('span', { class: 'rank-burst' }, h('span', { class: 'rank-text', text: STRINGS.common.ordinal(rank) })) : String(rank),
+  );
+}
+
+/** Round avatar with its rank sticker overlapping the top-left corner. */
+export function rankedAvatar(avatar, rank) {
+  return h('span', { class: 'ranked-avatar' }, avatarBadge(avatar, { size: 'lg' }), rankBadge(rank));
 }
 
 export function card(title, ...children) {

@@ -22,7 +22,7 @@ export function renderAvatarEditor({ state, navigate, toast }) {
   let draft = { ...state.avatar };
   let activeTab = TABS[0];
 
-  const preview = h('div', { class: 'editor-preview' });
+  const preview = h('div', { class: 'editor-preview scene' });
   const tabBar = h('div', { class: 'editor-tabs', attrs: { role: 'tablist' } });
   const options = h('div', { class: 'editor-options' });
 
@@ -58,6 +58,7 @@ export function renderAvatarEditor({ state, navigate, toast }) {
           attrs: { type: 'button', 'aria-pressed': selected ? 'true' : 'false', 'aria-label': STRINGS.parts[id] },
           on: { click: () => { draft = candidate; drawPreview(); drawOptions(); } },
         },
+        selected ? h('span', { class: 'option-check', attrs: { 'aria-hidden': 'true' } }, '✓') : null,
         buildAvatarSvg(candidate, { crop: activeTab.crop }),
         h('span', { class: 'option-label', text: STRINGS.parts[id] }),
         );

@@ -9,6 +9,7 @@ import { renderCompetition } from './ui/pages/competition.js';
 import { renderAccount, renderCreateParty, renderHealth, renderLogin, renderMembers, renderRules } from './ui/pages/placeholders.js';
 import { renderProfile } from './ui/pages/profile.js';
 import { renderRace } from './ui/pages/race.js';
+import { applyTheme } from './ui/theme.js';
 
 const SPLASH_MS = 1500;
 const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -158,6 +159,7 @@ function registerServiceWorker() {
 
 // --- Boot -------------------------------------------------------------------
 
+applyTheme();
 applyShellStrings();
 render();
 setTimeout(hideSplash, SPLASH_MS);

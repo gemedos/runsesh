@@ -2,7 +2,7 @@
 
 import { STRINGS } from '../strings.js';
 import { formatDate } from '../util/date.js';
-import { avatarBadge, formatSteps, rankBadge } from './components.js';
+import { formatSteps, rankedAvatar } from './components.js';
 import { h } from './dom.js';
 
 const T = STRINGS.competition;
@@ -46,8 +46,7 @@ export function standingsList(competition, standings, members) {
       const m = byId.get(row.id);
       if (!m) return null;
       return h('li', { class: `rank-row${m.isMe ? ' rank-row--me' : ''}` },
-        rankBadge(row.rank),
-        avatarBadge(m.avatar, { size: 'sm' }),
+        rankedAvatar(m.avatar, row.rank),
         h('span', { class: 'rank-name', text: m.name }),
         h('span', { class: 'rank-score', text: scoreLabel(competition.mode, row.value) }),
       );
