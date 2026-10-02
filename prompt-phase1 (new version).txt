@@ -1,0 +1,65 @@
+Read CLAUDE.md in the project root and follow it at all times. If anything in this prompt conflicts with CLAUDE.md, STOP and ask me instead of working around it. Do not run git push or git commit; I will do that myself.
+
+PROJECT
+"runsesh" is a step-competition PWA for iPhone and Android. Plain HTML, CSS and JavaScript (ES modules), no frameworks, no bundler. Keep dependencies at zero unless I approve them.
+
+HOSTING AND BACKEND (decided)
+- The front end is hosted on GitHub Pages as a project site served from /REPO-NAME/, so use relative paths everywhere.
+- The backend will be Supabase (free plan: Auth + Postgres + Edge Functions), added in Phase 2. Supabase does NOT host the website. Do not add any Supabase code, keys, or network requests in this phase.
+
+PHASE 1 SCOPE (build only this)
+A complete UI shell that runs on local mock data. No accounts, no network requests, no health data, no file uploads, no backend. Clearly label all mock data as mock in the code. First give me a short plan and wait for my approval before writing code.
+
+BRANDING
+- Logo: the letters "RS" drawn as cartoony running tracks, as an SVG.
+- App icon: the logo on an orange background. Provide an SVG source plus PNG files: 192x192, 512x512, a maskable 512x512 (logo inside the safe zone), and a 180x180 apple-touch-icon. Tell me how you generated the PNGs.
+- Splash: when the app opens, show the icon large in the middle on the same orange background for about 1.5 seconds, then show the app.
+- Fonts: use a cartoony font that is open-licensed, downloaded and stored in the repo (no Google Fonts or CDN links). Tell me the font name and license.
+
+NAVIGATION
+A bottom bar with two grey line-drawn icons: (1) a running track with two curves ending in a finish line, (2) a generic avatar head. Tapping switches between the two pages. Respect the safe-area insets on iPhone. Use hash-based routing (#/race, #/profile, ...) because GitHub Pages has no server-side routing.
+
+PAGE 1 (RACE)
+1. Top: a "Create a party" button, followed by the round icons of the party members (mock).
+2. An interactive horizontal slider showing every member's avatar positioned by their step count. The background looks like a dirt track that gradually changes into green, rocky and flowery terrain.
+3. A daily ranking of members by steps today. Rank numbers in cartoony gold (1st), silver (2nd) and copper (3rd).
+4. A red "COMPETITION" label over a circus-style drawing, with a ranking of members according to the competition rules (mock rules for now).
+
+PAGE 2 (PROFILE)
+1. Top: a depiction of my avatar. Tapping it opens the avatar customization screen.
+2. Below, an expandable list:
+   PARTY: Party settings (Manage members, Party rules), Competition
+   SETTINGS: Login / Log out, Account, Health connect
+3. For this phase, these items open placeholder screens that show the intended layout with mock data and clearly say "not connected yet".
+   - Competition: the circus-style screen with the "Create a competition" form (start date, optional end date, ranking mode: days won / points 3-2-1 / total steps, optional golden reward toggle). The form only updates local mock state.
+   - Account: name and email (mock). Do NOT display or mimic a password. Show a "Change password" button that does nothing yet.
+   - Health connect: explain the three future ways to provide steps, as non-functional cards: "iPhone: Apple Shortcut", "Android: companion app", and "Manual entry". Each says "coming later".
+   - Party rules: choose "plain steps" or "bonus for steps with elevation gain" (mock).
+
+AVATAR EDITOR (build fully in this phase)
+- A simple dummy figure built from layered SVG parts.
+- Skin/body color picked with a native <input type="color"> (RGB picker).
+- Many options for each subcategory: hair, clothes, accessories (including the golden set: glasses, vest, boots, crown, golden color, shown only as locked previews).
+- Store the avatar as a small JSON object that uses only whitelisted part IDs and a validated hex color (#RRGGBB). Reject anything else. Document the exact JSON schema in docs/avatar-schema.md because the database will enforce it in Phase 2. Build SVG from these safely; never concatenate raw strings into markup.
+- The profile icon is a close-up crop of the avatar. (Photo upload comes in a later phase.)
+
+PWA REQUIREMENTS
+- manifest.webmanifest with relative start_url and scope, display standalone, orange theme color, all icons.
+- A service worker that caches only the static app shell with a versioned cache name and deletes old caches on activate. No caching of user data or cross-origin requests.
+- iOS meta tags (apple-mobile-web-app-capable, status bar style, apple-touch-icon), and a CSP meta tag exactly as defined in CLAUDE.md.
+- An in-app hint for iPhone users explaining "Share > Add to Home Screen".
+
+ARCHITECTURE FOR LATER PHASES (do not build, but structure code so it fits)
+- All step data goes through a small StepsProvider interface (getStepsForDay, getStepsForRange). For now there is one implementation: a mock. Later there will be one reading steps stored in Supabase.
+- All ranking and points rules live in one pure, testable module.
+- State handling is separate from rendering so a backend can replace local state later.
+- Put every user-visible string through one small module so text can be changed in one place.
+
+LATER PHASES (for context only)
+2) Supabase backend, accounts, profile and avatar saving
+3) Parties, invites, photo upload
+4) Real steps: Supabase Edge Function that receives steps from an Apple Shortcut or Android companion app, plus manual entry
+5) Competitions and rewards
+
+WHEN YOU FINISH
+End with the Security Check from CLAUDE.md, list anything you could not verify, and tell me how to test the app on my phone.
