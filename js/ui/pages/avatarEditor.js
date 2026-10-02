@@ -3,16 +3,19 @@
 import { AVATAR_FIELDS, buildAvatarSvg, isHexColor, validateAvatar } from '../../avatar/avatar.js';
 import { GOLDEN_SET } from '../../avatar/parts.js';
 import { saveAvatar } from '../../state/store.js';
+import { STRINGS } from '../../strings.js';
 import { screenHeader } from '../components.js';
 import { h } from '../dom.js';
 
+const T = STRINGS.avatarEditor;
+
 const TABS = [
-  { id: 'hair', label: 'Hair', field: 'hair', crop: true },
-  { id: 'hairColor', label: 'Hair color', field: 'hairColor', crop: true },
-  { id: 'top', label: 'Tops', field: 'top' },
-  { id: 'bottom', label: 'Bottoms', field: 'bottom' },
-  { id: 'shoes', label: 'Shoes', field: 'shoes' },
-  { id: 'acc', label: 'Accessories', field: 'acc', golden: true },
+  { field: 'hair', crop: true },
+  { field: 'hairColor', crop: true },
+  { field: 'top' },
+  { field: 'bottom' },
+  { field: 'shoes' },
+  { field: 'acc', golden: true },
 ];
 
 export function renderAvatarEditor({ state, navigate, toast }) {
@@ -32,13 +35,13 @@ export function renderAvatarEditor({ state, navigate, toast }) {
   skinInput.addEventListener('change', drawOptions);
 
   function drawPreview() {
-    preview.replaceChildren(buildAvatarSvg(draft, { label: 'Avatar preview' }));
+    preview.replaceChildren(buildAvatarSvg(draft, { label: T.preview }));
   }
 
   function drawTabs() {
     tabBar.replaceChildren(...TABS.map((tab) => h('button', {
       class: `chip${tab === activeTab ? ' chip--active' : ''}`,
-      text: tab.label,
+      text: T.tabs[tab.field],
       attrs: { type: 'button', role: 'tab', 'aria-selected': tab === activeTab ? 'true' : 'false' },
       on: { click: () => { activeTab = tab; drawTabs(); drawOptions(); } },
     })));
@@ -47,16 +50,16 @@ export function renderAvatarEditor({ state, navigate, toast }) {
   function drawOptions() {
     const whitelist = AVATAR_FIELDS[activeTab.field];
     const grid = h('div', { class: 'option-grid' },
-      Object.entries(whitelist).map(([id, part]) => {
+      Object.keys(whitelist).map((id) => {
         const candidate = { ...draft, [activeTab.field]: id };
         const selected = draft[activeTab.field] === id;
         return h('button', {
           class: `option${selected ? ' option--selected' : ''}`,
-          attrs: { type: 'button', 'aria-pressed': selected ? 'true' : 'false', 'aria-label': part.label },
+          attrs: { type: 'button', 'aria-pressed': selected ? 'true' : 'false', 'aria-label': STRINGS.parts[id] },
           on: { click: () => { draft = candidate; drawPreview(); drawOptions(); } },
         },
         buildAvatarSvg(candidate, { crop: activeTab.crop }),
-        h('span', { class: 'option-label', text: part.label }),
+        h('span', { class: 'option-label', text: STRINGS.parts[id] }),
         );
       }),
     );
@@ -66,13 +69,13 @@ export function renderAvatarEditor({ state, navigate, toast }) {
 
   function goldenSection() {
     return h('div', { class: 'golden-set' },
-      h('h3', { class: 'golden-title', text: 'Golden set' }),
-      h('p', { class: 'hint', text: 'Locked. Win competitions with a golden reward to unlock.' }),
+      h('h3', { class: 'golden-title', text: T.goldenTitle }),
+      h('p', { class: 'hint', text: T.goldenHint }),
       h('div', { class: 'option-grid' },
-        Object.entries(GOLDEN_SET).map(([id, part]) => h('div', { class: 'option option--locked', attrs: { 'aria-label': `${part.label} (locked)`, role: 'img' } },
+        Object.entries(GOLDEN_SET).map(([id, part]) => h('div', { class: 'option option--locked', attrs: { 'aria-label': T.locked(STRINGS.parts[id]), role: 'img' } },
           buildAvatarSvg(draft, { golden: id, crop: part.layer === 'acc' }),
           h('span', { class: 'lock', attrs: { 'aria-hidden': 'true' } }, '🔒'),
-          h('span', { class: 'option-label', text: part.label }),
+          h('span', { class: 'option-label', text: STRINGS.parts[id] }),
         )),
       ),
     );
@@ -80,16 +83,16 @@ export function renderAvatarEditor({ state, navigate, toast }) {
 
   const save = h('button', {
     class: 'btn btn-primary',
-    text: 'Save avatar',
+    text: T.save,
     attrs: { type: 'button' },
     on: {
       click: () => {
         const clean = validateAvatar(draft);
         if (!clean || !saveAvatar(clean)) {
-          toast('Could not save that avatar.');
+          toast(T.saveFailed);
           return;
         }
-        toast('Avatar saved.');
+        toast(T.saved);
         navigate('profile');
       },
     },
@@ -100,10 +103,10 @@ export function renderAvatarEditor({ state, navigate, toast }) {
   drawOptions();
 
   return h('div', { class: 'page page-editor' },
-    screenHeader('Your avatar', 'profile'),
+    screenHeader(T.title, 'profile'),
     preview,
     h('div', { class: 'card editor-skin' },
-      h('label', { attrs: { for: 'skin-color' }, text: 'Skin / body color' }),
+      h('label', { attrs: { for: 'skin-color' }, text: T.skin }),
       skinInput,
     ),
     tabBar,

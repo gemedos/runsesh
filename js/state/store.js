@@ -1,11 +1,14 @@
 // Local app state. Rendering code only uses getState / subscribe / the action helpers,
 // so a backend-backed store can replace this module later without touching the views.
 //
-// Persisted in localStorage (Phase 1 only, nothing sensitive): the avatar JSON and
-// locally created mock competitions. Everything read back is validated again.
+// Persisted in localStorage (Phase 1 only, nothing sensitive): the avatar JSON,
+// locally created mock competitions and the party's step-scoring setting.
+// Everything read back is validated again.
 
 import { DEFAULT_AVATAR, validateAvatar } from '../avatar/avatar.js';
-import { MOCK_ACCOUNT, MOCK_ME_ID, MOCK_MEMBERS, MOCK_PARTY, mockDefaultCompetition } from '../data/mockData.js';
+import { MOCK_ACCOUNT, MOCK_ME_ID, MOCK_MEMBERS, MOCK_PARTY, MOCK_PARTY_RULES, mockDefaultCompetition } from '../data/mockData.js';
+import { isStepScoring } from '../rules/ranking.js';
+import { STRINGS } from '../strings.js';
 import { todayISO } from '../util/date.js';
 import { validateCompetitionInput, validateStoredCompetition } from './competition.js';
 
@@ -24,6 +27,7 @@ function createInitialState(saved) {
     account: MOCK_ACCOUNT, // MOCK
     party: MOCK_PARTY, // MOCK
     members: MOCK_MEMBERS, // MOCK
+    partyRules: Object.freeze({ ...MOCK_PARTY_RULES, stepScoring: saved.stepScoring || MOCK_PARTY_RULES.stepScoring }), // MOCK
     avatar: saved.avatar,
     competitions: Object.freeze(competitions),
     activeCompetitionId: activeId,
@@ -63,7 +67,7 @@ export function createCompetition(input) {
   if (!res.ok) return res;
   const competition = Object.freeze({ id: newLocalId(), ...res.value });
   const userMade = state.competitions.filter((c) => !c.mock);
-  if (userMade.length >= MAX_COMPETITIONS) return { ok: false, errors: { form: `You can keep up to ${MAX_COMPETITIONS} local competitions.` } };
+  if (userMade.length >= MAX_COMPETITIONS) return { ok: false, errors: { form: STRINGS.competition.errors.tooMany(MAX_COMPETITIONS) } };
   setState({
     competitions: Object.freeze([...state.competitions, competition]),
     activeCompetitionId: competition.id,
@@ -73,6 +77,13 @@ export function createCompetition(input) {
 
 export function setActiveCompetition(id) {
   if (state.competitions.some((c) => c.id === id)) setState({ activeCompetitionId: id });
+}
+
+/** MOCK: party setting, local only. @returns {boolean} false if the value was rejected */
+export function setStepScoring(value) {
+  if (!isStepScoring(value)) return false;
+  setState({ partyRules: Object.freeze({ ...state.partyRules, stepScoring: value }) });
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,7 +112,7 @@ export function getActiveCompetition(s = state) {
 // ---------------------------------------------------------------------------
 
 function loadPersisted() {
-  const fallback = { avatar: DEFAULT_AVATAR, competitions: [], activeCompetitionId: null };
+  const fallback = { avatar: DEFAULT_AVATAR, competitions: [], activeCompetitionId: null, stepScoring: null };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw || raw.length > 20000) return fallback;
@@ -114,6 +125,7 @@ function loadPersisted() {
       avatar: validateAvatar(data.avatar) || DEFAULT_AVATAR,
       competitions,
       activeCompetitionId: typeof data.activeCompetitionId === 'string' ? data.activeCompetitionId : null,
+      stepScoring: isStepScoring(data.stepScoring) ? data.stepScoring : null,
     };
   } catch {
     return fallback;
@@ -126,6 +138,7 @@ function persist() {
       avatar: state.avatar,
       competitions: state.competitions.filter((c) => !c.mock),
       activeCompetitionId: state.activeCompetitionId,
+      stepScoring: state.partyRules.stepScoring,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {

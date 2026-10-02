@@ -1,7 +1,10 @@
 // Page 2: Profile.
 
 import { buildAvatarSvg } from '../../avatar/avatar.js';
+import { STRINGS } from '../../strings.js';
 import { h } from '../dom.js';
+
+const T = STRINGS.profile;
 
 function navItem(label, route) {
   return h('li', {}, h('a', { class: 'list-link', attrs: { href: `#/${route}` } }, h('span', { text: label }), h('span', { class: 'chevron', text: '›' })));
@@ -16,24 +19,24 @@ function group(title, items, open = false) {
 
 export function renderProfile({ state }) {
   return h('div', { class: 'page page-profile' },
-    h('a', { class: 'profile-hero', attrs: { href: '#/avatar', 'aria-label': 'Customize your avatar' } },
-      buildAvatarSvg(state.avatar, { label: 'Your avatar' }),
-      h('span', { class: 'profile-hero-hint', text: 'Tap to customize' }),
+    h('a', { class: 'profile-hero', attrs: { href: '#/profile/avatar', 'aria-label': T.customize } },
+      buildAvatarSvg(state.avatar, { label: T.yourAvatar }),
+      h('span', { class: 'profile-hero-hint', text: T.tapToCustomize }),
     ),
     h('p', { class: 'profile-name', text: state.account.name }),
 
-    group('PARTY', [
+    group(T.groupParty, [
       h('li', {}, h('details', { class: 'subgroup' },
-        h('summary', { class: 'list-link', text: 'Party settings' }),
-        h('ul', { class: 'list list--nested' }, navItem('Manage members', 'members'), navItem('Party rules', 'rules')),
+        h('summary', { class: 'list-link', text: T.partySettings }),
+        h('ul', { class: 'list list--nested' }, navItem(T.manageMembers, 'profile/members'), navItem(T.partyRules, 'profile/rules')),
       )),
-      navItem('Competition', 'competition'),
+      navItem(T.competition, 'profile/competition'),
     ], true),
 
-    group('SETTINGS', [
-      navItem('Login / Log out', 'login'),
-      navItem('Account', 'account'),
-      navItem('Health connect', 'health'),
+    group(T.groupSettings, [
+      navItem(T.login, 'profile/login'),
+      navItem(T.account, 'profile/account'),
+      navItem(T.health, 'profile/health'),
     ]),
   );
 }

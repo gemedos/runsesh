@@ -1,38 +1,40 @@
 // Circus-style competition header and standings list (used on Race and Competition screens).
 
-import { RANKING_MODE_LABELS } from '../rules/ranking.js';
+import { STRINGS } from '../strings.js';
 import { formatDate } from '../util/date.js';
 import { avatarBadge, formatSteps, rankBadge } from './components.js';
 import { h } from './dom.js';
 
+const T = STRINGS.competition;
+
 export function circusHeader() {
   return h('div', { class: 'circus' },
     h('img', { class: 'circus-art', attrs: { src: 'img/circus.svg', alt: '' } }),
-    h('span', { class: 'circus-label', text: 'COMPETITION' }),
+    h('span', { class: 'circus-label', text: T.banner }),
   );
 }
 
 export function scoreLabel(mode, value) {
-  if (mode === 'days_won') return `${value} ${value === 1 ? 'day' : 'days'} won`;
-  if (mode === 'points_321') return `${value} pts`;
-  return `${formatSteps(value)} steps`;
+  if (mode === 'days_won') return T.scoreDaysWon(value);
+  if (mode === 'points_321') return T.scorePoints(value);
+  return T.scoreSteps(formatSteps(value));
 }
 
 export function competitionMeta(competition, today) {
   const dates = competition.end
-    ? `${formatDate(competition.start)} – ${formatDate(competition.end)}`
-    : `From ${formatDate(competition.start)} (no end date)`;
-  let status = 'Running';
-  if (competition.start > today) status = 'Not started';
-  else if (competition.end && competition.end < today) status = 'Finished';
+    ? T.datesRange(formatDate(competition.start), formatDate(competition.end))
+    : T.datesOpen(formatDate(competition.start));
+  let status = T.statusRunning;
+  if (competition.start > today) status = T.statusNotStarted;
+  else if (competition.end && competition.end < today) status = T.statusFinished;
 
   return h('div', { class: 'comp-meta' },
     h('h3', { class: 'comp-name', text: competition.name }),
     h('p', { class: 'comp-dates', text: dates }),
     h('div', { class: 'comp-tags' },
       h('span', { class: 'tag', text: status }),
-      h('span', { class: 'tag', text: RANKING_MODE_LABELS[competition.mode] }),
-      competition.golden ? h('span', { class: 'tag tag--gold', text: 'Golden reward' }) : null,
+      h('span', { class: 'tag', text: T.modes[competition.mode] }),
+      competition.golden ? h('span', { class: 'tag tag--gold', text: T.goldenReward }) : null,
     ),
   );
 }

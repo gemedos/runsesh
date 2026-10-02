@@ -13,7 +13,7 @@ Open http://localhost:8080/ (the app) and http://localhost:8080/tests/ (unit tes
 ## Phase 1 checks (run now)
 
 ### 5. XSS
-1. Profile → Competition → Create a competition.
+1. Open `#/profile/competition` (Profile → Competition) → Create a competition.
 2. Name: `<img src=x onerror=alert(1)>`, pick a start date, submit.
 3. Expected: the name is shown literally as text on the Competition screen and the Race page. No alert.
 4. DevTools → Application → Local Storage → edit `runsesh.local.v1` and set
@@ -22,8 +22,10 @@ Open http://localhost:8080/ (the app) and http://localhost:8080/tests/ (unit tes
 5. Unit tests cover the avatar whitelist and color validation (`tests/avatar.test.js`).
 
 ### 6. CSP
-1. Open DevTools Console, then visit every screen: Race, Create a party, Profile, Avatar editor
-   (all tabs), Party settings → Manage members / Party rules, Competition, Login, Account, Health connect.
+1. Open DevTools Console, then visit (and refresh) every route: `#/race`, `#/race/create-party`, `#/profile`,
+   `#/profile/avatar` (all tabs), `#/profile/members`, `#/profile/rules`, `#/profile/competition`,
+   `#/profile/login`, `#/profile/account`, `#/profile/health`. An unknown hash such as `#/nope` must
+   land on `#/race`.
 2. Expected: no `Content-Security-Policy` violations.
 3. `grep -rnE "innerHTML|outerHTML|document.write|eval\(|new Function" js` returns only comments.
 

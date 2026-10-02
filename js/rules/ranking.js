@@ -13,14 +13,21 @@ export const RANKING_MODES = Object.freeze({
   TOTAL_STEPS: 'total_steps',
 });
 
-export const RANKING_MODE_LABELS = Object.freeze({
-  days_won: 'Days won',
-  points_321: 'Points 3-2-1',
-  total_steps: 'Total steps',
-});
-
 export function isRankingMode(value) {
   return Object.values(RANKING_MODES).includes(value);
+}
+
+/**
+ * How a party counts steps. Only stored and shown in Phase 1: the elevation bonus
+ * needs real elevation data, so its rule is defined in a later phase.
+ */
+export const STEP_SCORING = Object.freeze({
+  PLAIN: 'plain',
+  ELEVATION_BONUS: 'elevation_bonus',
+});
+
+export function isStepScoring(value) {
+  return Object.values(STEP_SCORING).includes(value);
 }
 
 /**
