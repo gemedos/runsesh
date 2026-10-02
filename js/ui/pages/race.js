@@ -1,19 +1,31 @@
 // Page 1: Race.
+// Layout (see docs/design.md): party row → stage (night world + hero number + minimap)
+// → rankings → competition.
 
+import { buildAvatarSvg } from '../../avatar/avatar.js';
 import { loadStandings } from '../../data/competitionData.js';
 import { rankDay } from '../../rules/ranking.js';
 import { getActiveCompetition, getPartyMembers } from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
 import { todayISO } from '../../util/date.js';
 import { circusHeader, competitionMeta, standingsList } from '../competitionBlock.js';
-import { avatarBadge, card, formatSteps, rankedAvatar } from '../components.js';
+import { avatarBadge, formatSteps, rankBadge, rankedAvatar } from '../components.js';
 import { h, onMount, s } from '../dom.js';
 import { iosInstallHint } from '../installHint.js';
 
-const TRACK_WIDTH = 1600;
-const TRACK_PAD = 70;
-const LANE_TOPS = [14, 66, 118];
 const T = STRINGS.race;
+
+// The world is one continuous path. Positions depend only on step counts.
+const WORLD_WIDTH = 2400;
+const WORLD_PAD = 150;
+// Depth lanes: further back = higher on the path and smaller.
+const LANES = [
+  { bottom: 16, scale: 1, z: 30 },
+  { bottom: 44, scale: 0.86, z: 20 },
+  { bottom: 70, scale: 0.74, z: 10 },
+];
+
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export async function renderRace({ state, steps }) {
   const today = todayISO();
@@ -21,7 +33,6 @@ export async function renderRace({ state, steps }) {
   const todaySteps = await Promise.all(members.map((m) => steps.getStepsForDay(m.id, today)));
   const stepsById = Object.fromEntries(members.map((m, i) => [m.id, todaySteps[i]]));
   const ranking = rankDay(stepsById, members.map((m) => m.id));
-  const goal = state.partyRules.dailyGoal;
 
   const competition = getActiveCompetition(state);
   const standings = competition ? await loadStandings(competition, members, steps, today) : null;
@@ -29,87 +40,198 @@ export async function renderRace({ state, steps }) {
   return h('div', { class: 'page page-race' },
     iosInstallHint(),
     partyBar(state, members),
-    myStepsHero(stepsById[state.meId] || 0),
-    trackCard(members, ranking, goal),
-    dailyRankingCard(members, ranking, goal),
-    competitionCard(competition, standings, members, today),
+    stage(members, ranking, stepsById[state.meId] || 0, state.meId),
+    h('div', { class: 'race-columns' },
+      rankingsSection(members, ranking),
+      competitionCard(competition, standings, members, today),
+    ),
   );
 }
 
 function partyBar(state, members) {
   return h('section', { class: 'party-bar' },
-    h('a', { class: 'btn btn-primary', attrs: { href: '#/race/create-party' }, text: T.createParty }),
+    h('a', { class: 'btn btn-promo btn-compact', attrs: { href: '#/race/create-party' } },
+      h('span', { class: 'btn-plus', attrs: { 'aria-hidden': 'true' }, text: '+' }), h('span', { text: T.createParty })),
     h('div', { class: 'party-members', attrs: { 'aria-label': T.partyMembers(state.party.name) } },
       members.map((m) => h('span', { class: 'party-member' },
         avatarBadge(m.avatar, { size: 'md' }),
-        h('span', { class: 'party-member-name', text: m.name }),
+        h('span', { class: 'party-member-name', text: m.isMe ? T.you : m.name }),
       )),
     ),
   );
 }
 
-function myStepsHero(mySteps) {
-  return h('section', { class: 'steps-hero' },
-    h('span', { class: 'steps-hero-number', text: formatSteps(mySteps) }),
-    h('span', { class: 'steps-hero-label', text: T.yourSteps }),
-    s('svg', { class: 'squiggle', viewBox: '0 0 130 12', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': 3, 'stroke-linecap': 'round' },
-      s('path', { d: 'M3 6 Q11 0 19 6 T35 6 T51 6 T67 6 T83 6 T99 6 T115 6 T127 6' }),
-    ),
-  );
+// ---------------------------------------------------------------------------
+// Stage: hero number + continuous world + minimap
+// ---------------------------------------------------------------------------
+
+/** Rounds up to a "nice" multiple of 1,000 steps so ticks land on round numbers. */
+function scaleFor(ranking) {
+  const top = ranking.length ? ranking[0].value : 0;
+  return Math.max(6000, Math.ceil((top * 1.1) / 1000) * 1000);
 }
 
-function trackCard(members, ranking, goal) {
-  const top = ranking.length ? ranking[0].value : 0;
-  const scaleMax = Math.max(goal * 1.2, top * 1.08);
-  const xFor = (value) => TRACK_PAD + (value / scaleMax) * (TRACK_WIDTH - 2 * TRACK_PAD);
+function tickStep(scaleMax) {
+  return scaleMax <= 12000 ? 2000 : scaleMax <= 24000 ? 4000 : 6000;
+}
+
+function stage(members, ranking, mySteps, meId) {
+  const scaleMax = scaleFor(ranking);
+  const xFor = (value) => WORLD_PAD + (Math.min(value, scaleMax) / scaleMax) * (WORLD_WIDTH - 2 * WORLD_PAD);
   const byId = new Map(members.map((m) => [m.id, m]));
+  const step = tickStep(scaleMax);
 
-  const track = h('div', { class: 'track' });
-  track.style.width = `${TRACK_WIDTH}px`;
+  // --- the world -----------------------------------------------------------
+  const track = h('div', { class: 'world-track' });
+  track.style.width = `${WORLD_WIDTH}px`;
+  track.append(h('span', { class: 'world-ground' }));
 
-  for (let v = 0; v <= scaleMax; v += 2000) {
-    const tick = h('span', { class: 'track-tick', text: v === 0 ? T.trackStart : T.trackTick(v / 1000) });
-    tick.style.left = `${xFor(v)}px`;
-    track.append(tick);
+  const start = h('span', { class: 'world-start' }, h('span', { class: 'world-sign', text: T.trackStart }));
+  start.style.left = `${xFor(0)}px`;
+  track.append(start);
+  for (let v = 1000; v <= scaleMax; v += 1000) {
+    const post = h('span', { class: `world-post${v % step === 0 ? ' world-post--major' : ''}` },
+      h('span', { class: 'world-sign', text: T.trackTick(v / 1000) }));
+    post.style.left = `${xFor(v)}px`;
+    track.append(post);
   }
 
-  const flag = h('span', { class: 'track-goal' }, h('span', { class: 'track-goal-label', text: T.goal(formatSteps(goal)) }));
-  flag.style.left = `${xFor(goal)}px`;
-  track.append(flag);
-
-  let meMarker = null;
-  const markers = [];
-  // Draw the leader last so it sits on top.
-  [...ranking].reverse().forEach((row) => {
+  const runners = new Map();
+  ranking.forEach((row, index) => {
     const m = byId.get(row.id);
-    const lane = ranking.indexOf(row) % LANE_TOPS.length;
-    const marker = h('button', {
+    const lane = LANES[index % LANES.length];
+    const runner = h('button', {
       class: `runner${m.isMe ? ' runner--me' : ''}`,
-      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.name, formatSteps(row.value)) },
+      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.isMe ? T.you : m.name, formatSteps(row.value)) },
+      dataset: { id: m.id },
     },
-    avatarBadge(m.avatar, { size: 'sm' }),
-    h('span', { class: 'runner-label' }, h('b', { text: m.name }), ` ${formatSteps(row.value)}`),
+    h('span', { class: 'runner-bubble' }, formatSteps(row.value), rankBadge(row.rank)),
+    h('span', { class: 'runner-figure' }, buildAvatarSvg(m.avatar)),
+    h('span', { class: 'runner-name', text: m.isMe ? T.you : m.name }),
     );
-    marker.style.left = `${xFor(row.value)}px`;
-    marker.style.top = `${LANE_TOPS[lane]}px`;
-    marker.addEventListener('click', () => {
-      const wasOpen = marker.classList.contains('is-open');
-      markers.forEach((el) => el.classList.remove('is-open'));
-      if (!wasOpen) marker.classList.add('is-open');
-    });
-    if (m.isMe) meMarker = marker;
-    markers.push(marker);
-    track.append(marker);
+    runner.style.left = `${xFor(row.value)}px`;
+    runner.style.bottom = `${lane.bottom}px`;
+    runner.style.zIndex = String(lane.z + (ranking.length - index));
+    runner.style.setProperty('--s', String(lane.scale));
+    runner.style.setProperty('--delay', `${(index * 0.17) % 1.1}s`);
+    runners.set(m.id, runner);
+    track.append(runner);
   });
 
-  const scroller = h('div', { class: 'track-scroll', attrs: { tabindex: '0', 'aria-label': T.trackLabel } }, track);
-  enableMouseDrag(scroller);
+  liftCrowdedBubbles(ranking, xFor, runners);
 
-  const node = card(T.trackTitle, scroller, h('p', { class: 'hint', text: T.trackHint }));
+  const world = h('div', { class: 'world', attrs: { tabindex: '0', 'aria-label': T.trackLabel } }, track);
+
+  // --- hero number over the sky ------------------------------------------------
+  const number = h('span', { class: 'hero-number', text: formatSteps(mySteps) });
+  const hero = h('div', { class: 'stage-hero', attrs: { 'aria-live': 'off' } },
+    number,
+    h('span', { class: 'hero-label', text: T.yourSteps }),
+    s('svg', { class: 'squiggle', viewBox: '0 0 130 12', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': 3, 'stroke-linecap': 'round' },
+      s('path', { d: 'M3 6 Q11 0 19 6 T35 6 T51 6 T67 6 T83 6 T99 6 T115 6 T127 6' })),
+  );
+
+  // --- minimap -----------------------------------------------------------------
+  const pct = (x) => `${(x / WORLD_WIDTH) * 100}%`;
+  const windowEl = h('span', { class: 'mm-window', attrs: { 'aria-hidden': 'true' } });
+  const rail = h('div', { class: 'mm-rail' }, h('span', { class: 'mm-line', attrs: { 'aria-hidden': 'true' } }), windowEl);
+  for (let v = step; v <= scaleMax; v += step) {
+    const tick = h('span', { class: 'mm-tick', text: T.trackTick(v / 1000) });
+    tick.style.left = pct(xFor(v));
+    rail.append(tick);
+  }
+  const dots = new Map();
+  [...ranking].reverse().forEach((row) => { // leader drawn last = on top
+    const m = byId.get(row.id);
+    const dot = h('button', {
+      class: `mm-dot${m.isMe ? ' mm-dot--me' : ''}`,
+      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.isMe ? T.you : m.name, formatSteps(row.value)) },
+    }, avatarBadge(m.avatar, { size: 'sm' }));
+    dot.style.left = pct(xFor(row.value));
+    dot.addEventListener('click', () => focusRunner(m.id, true));
+    dots.set(m.id, dot);
+    rail.append(dot);
+  });
+  const minimap = h('div', { class: 'minimap', attrs: { role: 'group', 'aria-label': T.minimapLabel } }, rail);
+
+  // --- behaviour -----------------------------------------------------------------
+  let focusedId = null;
+  function focusRunner(id, scroll) {
+    if (!runners.has(id)) return;
+    if (focusedId !== id) {
+      runners.get(focusedId)?.classList.remove('is-focused');
+      dots.get(focusedId)?.classList.remove('is-focused');
+      focusedId = id;
+      runners.get(id).classList.add('is-focused');
+      dots.get(id).classList.add('is-focused');
+    }
+    if (scroll) {
+      const left = runners.get(id).offsetLeft - world.clientWidth / 2;
+      world.scrollTo({ left, behavior: reducedMotion() ? 'auto' : 'smooth' });
+    }
+  }
+
+  function nearestToCenter() {
+    const center = world.scrollLeft + world.clientWidth / 2;
+    let best = null;
+    let bestDist = Infinity;
+    for (const [id, el] of runners) {
+      const d = Math.abs(el.offsetLeft - center);
+      if (d < bestDist) { best = id; bestDist = d; }
+    }
+    return best;
+  }
+
+  let frame = 0;
+  function sync() {
+    frame = 0;
+    world.style.setProperty('--px', String(world.scrollLeft));
+    windowEl.style.left = pct(world.scrollLeft);
+    windowEl.style.width = pct(world.clientWidth);
+    const id = nearestToCenter();
+    if (id) focusRunner(id, false);
+  }
+  world.addEventListener('scroll', () => { if (!frame) frame = requestAnimationFrame(sync); }, { passive: true });
+  const onResize = () => {
+    if (!world.isConnected) { window.removeEventListener('resize', onResize); return; }
+    if (!frame) frame = requestAnimationFrame(sync);
+  };
+  window.addEventListener('resize', onResize);
+
+  for (const [id, runner] of runners) runner.addEventListener('click', () => focusRunner(id, true));
+  enableMouseDrag(world);
+  enableRailDrag(rail, world);
+
+  const node = h('section', { class: 'stage' },
+    h('div', { class: 'stage-view' }, world, hero),
+    minimap,
+  );
   onMount(node, () => requestAnimationFrame(() => {
-    if (meMarker) scroller.scrollLeft = Math.max(0, meMarker.offsetLeft - scroller.clientWidth / 2);
+    const me = runners.get(meId);
+    if (me) world.scrollLeft = Math.max(0, me.offsetLeft - world.clientWidth / 2);
+    sync();
+    countUp(number, mySteps);
   }));
   return node;
+}
+
+/**
+ * Runners standing close together would cover each other's step bubbles. Walking along the
+ * path, each bubble that is too close to the previous one moves up a level (max 2) and gets
+ * a thin leader line down to its runner.
+ */
+const BUBBLE_GAP = 84; // world px
+const BUBBLE_LIFT = 34; // px per level
+function liftCrowdedBubbles(ranking, xFor, runners) {
+  const byX = [...ranking].sort((a, b) => a.value - b.value);
+  let prevX = -Infinity;
+  let level = 0;
+  for (const row of byX) {
+    const x = xFor(row.value);
+    level = x - prevX < BUBBLE_GAP ? (level + 1) % 3 : 0;
+    prevX = x;
+    runners.get(row.id).style.setProperty('--lift', `${level * BUBBLE_LIFT}px`);
+  }
 }
 
 /** Touch already scrolls natively; this adds click-and-drag for mouse users. */
@@ -124,27 +246,68 @@ function enableMouseDrag(scroller) {
     startScroll = scroller.scrollLeft;
   });
   scroller.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    scroller.scrollLeft = startScroll - (e.clientX - startX);
+    if (dragging) scroller.scrollLeft = startScroll - (e.clientX - startX);
   });
   const stop = () => { dragging = false; };
   scroller.addEventListener('pointerup', stop);
   scroller.addEventListener('pointerleave', stop);
 }
 
-function dailyRankingCard(members, ranking, goal) {
+/** Pressing or dragging on the minimap rail travels the world to that point. */
+function enableRailDrag(rail, world) {
+  let dragging = false;
+  const jump = (e) => {
+    const rect = rail.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    world.scrollLeft = frac * WORLD_WIDTH - world.clientWidth / 2;
+  };
+  rail.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.mm-dot')) return;
+    dragging = true;
+    rail.setPointerCapture(e.pointerId);
+    jump(e);
+  });
+  rail.addEventListener('pointermove', (e) => { if (dragging) jump(e); });
+  rail.addEventListener('pointerup', () => { dragging = false; });
+  rail.addEventListener('pointercancel', () => { dragging = false; });
+}
+
+function countUp(el, target) {
+  if (reducedMotion() || target <= 0) return;
+  const start = performance.now();
+  const duration = 700;
+  const tick = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - (1 - t) ** 3;
+    el.textContent = formatSteps(Math.round(target * eased));
+    if (t < 1 && el.isConnected) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ---------------------------------------------------------------------------
+// Rankings and competition
+// ---------------------------------------------------------------------------
+
+function rankingsSection(members, ranking) {
   const byId = new Map(members.map((m) => [m.id, m]));
-  return card(T.todayTitle,
+  const nameOf = (m) => (m.isMe ? T.you : m.name);
+  return h('section', { class: 'section' },
+    h('h2', { class: 'section-title', text: T.todayTitle }),
     h('ol', { class: 'ranking' },
-      ranking.map((row) => {
+      ranking.map((row, i) => {
         const m = byId.get(row.id);
-        const fill = h('span', { class: 'progress-fill' });
-        fill.style.width = `${Math.min(100, (row.value / goal) * 100)}%`;
+        let sub = T.leader;
+        if (i > 0) {
+          const prev = ranking[i - 1];
+          const prevName = nameOf(byId.get(prev.id));
+          sub = prev.value === row.value ? T.tied(prevName) : T.behind(formatSteps(prev.value - row.value), prevName);
+        }
         return h('li', { class: `rank-row${m.isMe ? ' rank-row--me' : ''}` },
           rankedAvatar(m.avatar, row.rank),
           h('span', { class: 'rank-main' },
-            h('span', { class: 'rank-name', text: m.name }),
-            h('span', { class: 'progress', attrs: { 'aria-hidden': 'true' } }, fill),
+            h('span', { class: 'rank-name', text: nameOf(m) }),
+            h('span', { class: 'rank-sub', text: sub }),
           ),
           h('span', { class: 'rank-score', text: STRINGS.common.steps(formatSteps(row.value)) }),
         );

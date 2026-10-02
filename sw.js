@@ -1,7 +1,7 @@
 // Service worker: caches ONLY the static app shell. No user data, no API responses.
 // Bump CACHE_VERSION whenever any file in APP_SHELL changes.
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `runsesh-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -16,9 +16,11 @@ const APP_SHELL = [
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
-  './img/terrain.svg',
+  './img/ground.svg',
+  './img/hills.svg',
+  './img/stars.svg',
+  './img/trees.svg',
   './img/circus.svg',
-  './img/night.svg',
   './js/app.js',
   './js/avatar/avatar.js',
   './js/avatar/parts.js',

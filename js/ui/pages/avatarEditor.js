@@ -1,38 +1,41 @@
 // Avatar customization screen. Edits a local draft; "Save" validates and stores it.
+// Layout (see docs/design.md): night scene with the figure → panel with text tabs and a
+// 3/4-column tile grid → floating Save pill. Two columns on desktop.
 
 import { AVATAR_FIELDS, buildAvatarSvg, isHexColor, validateAvatar } from '../../avatar/avatar.js';
 import { GOLDEN_SET } from '../../avatar/parts.js';
 import { saveAvatar } from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
-import { screenHeader } from '../components.js';
 import { h } from '../dom.js';
 
 const T = STRINGS.avatarEditor;
 
 const TABS = [
-  { field: 'hair', crop: true },
-  { field: 'hairColor', crop: true },
-  { field: 'top' },
-  { field: 'bottom' },
-  { field: 'shoes' },
-  { field: 'acc', golden: true },
+  { id: 'skin' },
+  { id: 'hair', field: 'hair', crop: true },
+  { id: 'hairColor', field: 'hairColor', crop: true },
+  { id: 'top', field: 'top' },
+  { id: 'bottom', field: 'bottom' },
+  { id: 'shoes', field: 'shoes' },
+  { id: 'acc', field: 'acc', golden: true },
 ];
+
+// Quick picks for the body color. Constants, and validated again like any other color.
+const SKIN_SWATCHES = ['#ff8c1a', '#ffd23f', '#5ec8f0', '#7ccc3a', '#f07ab4', '#b38bff', '#ffdbac', '#e0ac69', '#c68642', '#8d5524', '#f4f4f4', '#3a3a46'];
 
 export function renderAvatarEditor({ state, navigate, toast }) {
   let draft = { ...state.avatar };
   let activeTab = TABS[0];
 
-  const preview = h('div', { class: 'editor-preview scene' });
+  const preview = h('div', { class: 'editor-figure stomp' });
   const tabBar = h('div', { class: 'editor-tabs', attrs: { role: 'tablist' } });
   const options = h('div', { class: 'editor-options' });
 
-  const skinInput = h('input', { class: 'color-input', attrs: { type: 'color', id: 'skin-color', value: draft.skin } });
-  skinInput.addEventListener('input', () => {
-    if (!isHexColor(skinInput.value)) return;
-    draft = { ...draft, skin: skinInput.value.toLowerCase() };
+  function setSkin(hex) {
+    if (!isHexColor(hex)) return;
+    draft = { ...draft, skin: hex.toLowerCase() };
     drawPreview();
-  });
-  skinInput.addEventListener('change', drawOptions);
+  }
 
   function drawPreview() {
     preview.replaceChildren(buildAvatarSvg(draft, { label: T.preview }));
@@ -41,13 +44,38 @@ export function renderAvatarEditor({ state, navigate, toast }) {
   function drawTabs() {
     tabBar.replaceChildren(...TABS.map((tab) => h('button', {
       class: `chip${tab === activeTab ? ' chip--active' : ''}`,
-      text: T.tabs[tab.field],
+      text: T.tabs[tab.id],
       attrs: { type: 'button', role: 'tab', 'aria-selected': tab === activeTab ? 'true' : 'false' },
       on: { click: () => { activeTab = tab; drawTabs(); drawOptions(); } },
     })));
   }
 
+  function skinPanel() {
+    const input = h('input', { class: 'color-input', attrs: { type: 'color', id: 'skin-color', value: draft.skin } });
+    input.addEventListener('input', () => setSkin(input.value));
+    const swatches = h('div', { class: 'swatches' },
+      SKIN_SWATCHES.map((hex) => {
+        const selected = draft.skin === hex;
+        const btn = h('button', {
+          class: `swatch${selected ? ' swatch--selected' : ''}`,
+          attrs: { type: 'button', 'aria-label': T.swatch(hex), 'aria-pressed': selected ? 'true' : 'false' },
+          on: { click: () => { setSkin(hex); input.value = hex; drawOptions(); } },
+        });
+        btn.style.setProperty('--swatch', hex); // constant from the list above
+        return btn;
+      }),
+    );
+    return h('div', { class: 'skin-panel' },
+      h('label', { class: 'skin-picker', attrs: { for: 'skin-color' } }, input, h('span', { text: T.skinPicker })),
+      swatches,
+    );
+  }
+
   function drawOptions() {
+    if (!activeTab.field) {
+      options.replaceChildren(skinPanel());
+      return;
+    }
     const whitelist = AVATAR_FIELDS[activeTab.field];
     const grid = h('div', { class: 'option-grid' },
       Object.keys(whitelist).map((id) => {
@@ -83,7 +111,7 @@ export function renderAvatarEditor({ state, navigate, toast }) {
   }
 
   const save = h('button', {
-    class: 'btn btn-primary',
+    class: 'btn btn-primary btn-xl',
     text: T.save,
     attrs: { type: 'button' },
     on: {
@@ -104,14 +132,12 @@ export function renderAvatarEditor({ state, navigate, toast }) {
   drawOptions();
 
   return h('div', { class: 'page page-editor' },
-    screenHeader(T.title, 'profile'),
-    preview,
-    h('div', { class: 'card editor-skin' },
-      h('label', { attrs: { for: 'skin-color' }, text: T.skin }),
-      skinInput,
+    h('div', { class: 'editor-stage scene' },
+      h('a', { class: 'back-link back-link--float', attrs: { href: '#/profile', 'aria-label': STRINGS.app.back } }, '‹'),
+      h('h1', { class: 'sr-only', text: T.title }),
+      preview,
     ),
-    tabBar,
-    options,
+    h('div', { class: 'editor-panel' }, tabBar, options),
     h('div', { class: 'sticky-actions' }, save),
   );
 }

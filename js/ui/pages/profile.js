@@ -1,4 +1,6 @@
 // Page 2: Profile.
+// Layout (see docs/design.md): identity block (night banner, big avatar, name, customize pill)
+// → sheet lists (PARTY, SETTINGS). Two columns on desktop.
 
 import { buildAvatarSvg } from '../../avatar/avatar.js';
 import { STRINGS } from '../../strings.js';
@@ -38,28 +40,33 @@ function themeSwitch() {
 
 export function renderProfile({ state }) {
   return h('div', { class: 'page page-profile' },
-    h('a', { class: 'profile-banner scene', attrs: { href: '#/profile/avatar', 'aria-label': T.customize } },
-      buildAvatarSvg(state.avatar, { label: T.yourAvatar }),
-    ),
-    h('div', { class: 'profile-head' },
-      avatarBadge(state.avatar, { size: 'xl' }),
-      h('p', { class: 'profile-name', text: state.account.name }),
-      h('a', { class: 'btn btn-pill', attrs: { href: '#/profile/avatar' } }, hangerIcon(), h('span', { text: T.customizeButton })),
+    h('div', { class: 'profile-identity' },
+      h('a', { class: 'profile-banner scene', attrs: { href: '#/profile/avatar', 'aria-label': T.customize } },
+        h('span', { class: 'stomp' }, buildAvatarSvg(state.avatar, { label: T.yourAvatar })),
+      ),
+      h('div', { class: 'profile-head' },
+        avatarBadge(state.avatar, { size: 'xl' }),
+        h('p', { class: 'profile-name', text: state.account.name }),
+        h('p', { class: 'profile-sub', text: state.party.name }),
+        h('a', { class: 'btn btn-pill', attrs: { href: '#/profile/avatar' } }, hangerIcon(), h('span', { text: T.customizeButton })),
+      ),
     ),
 
-    group(T.groupParty, [
-      h('li', {}, h('details', { class: 'subgroup' },
-        h('summary', { class: 'list-link', text: T.partySettings }),
-        h('ul', { class: 'list list--nested' }, navItem(T.manageMembers, 'profile/members'), navItem(T.partyRules, 'profile/rules')),
-      )),
-      navItem(T.competition, 'profile/competition'),
-    ], true),
+    h('div', { class: 'profile-lists' },
+      group(T.groupParty, [
+        h('li', {}, h('details', { class: 'subgroup' },
+          h('summary', { class: 'list-link', text: T.partySettings }),
+          h('ul', { class: 'list list--nested' }, navItem(T.manageMembers, 'profile/members'), navItem(T.partyRules, 'profile/rules')),
+        )),
+        navItem(T.competition, 'profile/competition'),
+      ], true),
 
-    group(T.groupSettings, [
-      themeSwitch(),
-      navItem(T.login, 'profile/login'),
-      navItem(T.account, 'profile/account'),
-      navItem(T.health, 'profile/health'),
-    ], true),
+      group(T.groupSettings, [
+        themeSwitch(),
+        navItem(T.login, 'profile/login'),
+        navItem(T.account, 'profile/account'),
+        navItem(T.health, 'profile/health'),
+      ], true),
+    ),
   );
 }

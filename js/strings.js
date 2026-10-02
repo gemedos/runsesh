@@ -41,15 +41,17 @@ export const STRINGS = Object.freeze({
   race: {
     createParty: 'Create a party',
     partyMembers: (party) => `${party} members`,
-    trackTitle: "Today's race",
-    trackLabel: 'Race track, scroll sideways',
-    trackHint: 'Swipe the track. Tap a runner for details.',
+    trackLabel: "Today's race track. Swipe sideways to travel along it.",
     trackStart: 'Start',
     trackTick: (k) => `${k}k`,
-    goal: (n) => `Goal ${n}`,
     runnerLabel: (name, steps) => `${name}: ${steps} steps today`,
+    minimapLabel: 'Overview of all runners. Tap a runner to jump to them.',
+    you: 'You',
     todayTitle: 'Rankings',
     yourSteps: 'Your steps today',
+    leader: 'Leading today',
+    behind: (steps, name) => `${steps} behind ${name}`,
+    tied: (name) => `Tied with ${name}`,
   },
 
   competition: {
@@ -120,7 +122,10 @@ export const STRINGS = Object.freeze({
     title: 'Your avatar',
     preview: 'Avatar preview',
     skin: 'Skin / body color',
+    skinPicker: 'Pick any color',
+    swatch: (hex) => `Color ${hex}`,
     tabs: {
+      skin: 'Body color',
       hair: 'Hair',
       hairColor: 'Hair color',
       top: 'Tops',
@@ -176,8 +181,6 @@ export const STRINGS = Object.freeze({
   rules: {
     title: 'Party rules',
     cardTitle: 'Rules',
-    dailyGoal: 'Daily goal',
-    dailyGoalValue: (n) => `${n} steps`,
     dayResets: 'Day resets at',
     joining: 'Joining',
     inviteOnly: 'Invite only',

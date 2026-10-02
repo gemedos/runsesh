@@ -2,7 +2,7 @@
 
 import { buildAvatarSvg } from '../avatar/avatar.js';
 import { STRINGS } from '../strings.js';
-import { h } from './dom.js';
+import { h, s } from './dom.js';
 
 /** Header for sub-screens with a back link to the parent hash route. */
 export function screenHeader(title, backRoute = 'profile') {
@@ -12,10 +12,19 @@ export function screenHeader(title, backRoute = 'profile') {
   );
 }
 
+/** Teal call-out card: icon circle, bold title, teal subtitle. */
 export function notConnectedBanner(detail = STRINGS.common.notConnectedDefault) {
-  return h('div', { class: 'not-connected', attrs: { role: 'note' } },
-    h('strong', { text: STRINGS.common.notConnectedTitle }),
-    h('span', { text: detail }),
+  const plug = s('svg', { class: 'callout-svg', viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    s('path', { d: 'M9 3 V8 M15 3 V8' }),
+    s('path', { d: 'M6 8 H18 V11 A6 6 0 0 1 6 11 Z' }),
+    s('path', { d: 'M12 17 V21' }),
+  );
+  return h('div', { class: 'callout', attrs: { role: 'note' } },
+    h('span', { class: 'callout-icon' }, plug),
+    h('span', { class: 'callout-text' },
+      h('strong', { class: 'callout-title', text: STRINGS.common.notConnectedTitle }),
+      h('span', { class: 'callout-sub', text: detail }),
+    ),
   );
 }
 
