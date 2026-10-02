@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 160">
+  <defs>
+    <clipPath id="roof"><path d="M70 74 L180 16 L290 74 Z"/></clipPath>
+    <clipPath id="walls"><rect x="84" y="74" width="192" height="80"/></clipPath>
+  </defs>
+  <rect width="360" height="160" fill="#fff4dd"/>
+  <!-- bunting -->
+  <path d="M0 22 Q60 48 120 30" fill="none" stroke="#3a2a20" stroke-width="1.5"/>
+  <path d="M240 30 Q300 48 360 22" fill="none" stroke="#3a2a20" stroke-width="1.5"/>
+  <g stroke="#3a2a20" stroke-width="1.2" stroke-linejoin="round">
+    <path d="M14 27 L24 31 L16 44 Z" fill="#e0483a"/>
+    <path d="M38 34 L50 37 L41 50 Z" fill="#ffd23f"/>
+    <path d="M64 38 L77 39 L68 53 Z" fill="#2f80ed"/>
+    <path d="M90 37 L103 35 L97 50 Z" fill="#e0483a"/>
+    <path d="M257 35 L270 37 L263 50 Z" fill="#ffd23f"/>
+    <path d="M283 39 L296 38 L291 53 Z" fill="#e0483a"/>
+    <path d="M310 37 L322 34 L319 50 Z" fill="#2f80ed"/>
+    <path d="M336 31 L346 27 L344 44 Z" fill="#ffd23f"/>
+  </g>
+  <!-- ground -->
+  <ellipse cx="180" cy="156" rx="170" ry="10" fill="#e9c98f"/>
+  <!-- walls with stripes -->
+  <g clip-path="url(#walls)">
+    <rect x="84" y="74" width="192" height="80" fill="#ffffff"/>
+    <path d="M84 74 h24 v80 h-24z M132 74 h24 v80 h-24z M180 74 h24 v80 h-24z M228 74 h24 v80 h-24z" fill="#e0483a"/>
+  </g>
+  <rect x="84" y="74" width="192" height="80" fill="none" stroke="#3a2a20" stroke-width="3"/>
+  <!-- entrance -->
+  <path d="M154 154 L180 96 L206 154 Z" fill="#5a1f17" stroke="#3a2a20" stroke-width="3" stroke-linejoin="round"/>
+  <!-- roof with stripes -->
+  <g clip-path="url(#roof)">
+    <rect x="60" y="10" width="240" height="70" fill="#ffffff"/>
+    <path d="M180 16 L70 80 L100 80 Z M180 16 L130 80 L160 80 Z M180 16 L190 80 L220 80 Z M180 16 L250 80 L280 80 Z" fill="#e0483a"/>
+  </g>
+  <path d="M70 74 L180 16 L290 74 Z" fill="none" stroke="#3a2a20" stroke-width="3" stroke-linejoin="round"/>
+  <!-- scalloped valance -->
+  <path d="M66 74 q12.5 16 25 0 q12.5 16 25 0 q12.5 16 25 0 q12.5 16 25 0 q12.5 16 25 0 q12.5 16 25 0 q12.5 16 25 0 q12.5 16 25 0 q12.5 16 25 0 Z" fill="#ffd23f" stroke="#3a2a20" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- flag -->
+  <path d="M180 16 V2" stroke="#3a2a20" stroke-width="2.5"/>
+  <path d="M180 2 L198 7 L180 12 Z" fill="#e0483a" stroke="#3a2a20" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- stars -->
+  <g fill="#ffd23f" stroke="#3a2a20" stroke-width="1.2" stroke-linejoin="round">
+    <path d="M36 100 l4 8 9 1 -7 6 2 9 -8 -5 -8 5 2 -9 -7 -6 9 -1 z"/>
+    <path d="M318 96 l4 8 9 1 -7 6 2 9 -8 -5 -8 5 2 -9 -7 -6 9 -1 z"/>
+  </g>
+</svg>

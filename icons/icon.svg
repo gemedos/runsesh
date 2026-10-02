@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" fill="#ff8a1f"/>
+  <g transform="translate(50 50) scale(0.8) translate(-55 -50)">
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- outline, track surface, lane line -->
+    <path d="M22 78 V22 H36 C51 22 51 50 36 50 H22 M35 50 L48 78" stroke="#4a2414" stroke-width="17"/>
+    <path d="M86 30 C81 19 63 19 63 32 C63 45 88 40 88 58 C88 75 67 77 61 66" stroke="#4a2414" stroke-width="17"/>
+    <path d="M22 78 V22 H36 C51 22 51 50 36 50 H22 M35 50 L48 78" stroke="#e0483a" stroke-width="12"/>
+    <path d="M86 30 C81 19 63 19 63 32 C63 45 88 40 88 58 C88 75 67 77 61 66" stroke="#e0483a" stroke-width="12"/>
+    <path d="M22 78 V22 H36 C51 22 51 50 36 50 H22 M35 50 L48 78" stroke="#ffffff" stroke-width="1.6" stroke-dasharray="3.2 2.6"/>
+    <path d="M86 30 C81 19 63 19 63 32 C63 45 88 40 88 58 C88 75 67 77 61 66" stroke="#ffffff" stroke-width="1.6" stroke-dasharray="3.2 2.6"/>
+    <!-- checkered finish line at the end of the S -->
+    <path d="M57.8 72.4 L68.8 66.2" stroke="#ffffff" stroke-width="1.8" stroke-linecap="butt" stroke-dasharray="1.8 1.8"/>
+    <path d="M56.9 70.8 L67.9 64.6" stroke="#4a2414" stroke-width="1.8" stroke-linecap="butt" stroke-dasharray="1.8 1.8"/>
+    <path d="M56.9 70.8 L67.9 64.6" stroke="#ffffff" stroke-width="1.8" stroke-linecap="butt" stroke-dasharray="1.8 1.8" stroke-dashoffset="1.8"/>
+  </g>
+  </g>
+</svg>
