@@ -1,4 +1,4 @@
-import { competitionStandings, pointsForRank, rankDay, rankEntries } from '../js/rules/ranking.js';
+import { competitionStandings, isStepScoring, pointsForRank, rankDay, rankEntries } from '../js/rules/ranking.js';
 import { eq, test } from './harness.js';
 
 const ids = ['a', 'b', 'c', 'd'];
@@ -44,4 +44,8 @@ test('unknown mode throws', () => {
   let threw = false;
   try { competitionStandings({ mode: 'nope', days: [], memberIds: ids, today }); } catch { threw = true; }
   eq(threw, true);
+});
+
+test('step scoring accepts only the two documented values', () => {
+  eq(['plain', 'elevation_bonus', 'bonus', '', null].map(isStepScoring), [true, true, false, false, false]);
 });

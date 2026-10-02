@@ -1,0 +1,48 @@
+Read CLAUDE.md in the project root and follow it at all times. If anything in this prompt conflicts with CLAUDE.md, STOP and ask me instead of working around it. Do not run git push or git commit; I will do that myself.
+
+CONTEXT
+You already built a first version of "runsesh" (Phase 1, UI shell with mock data) from my original Phase 1 prompt. I have since revised the Phase 1 specification. The new version is saved as prompt-phase1.txt in the project root. Your job is to bring the EXISTING app in line with the new specification and with CLAUDE.md. Do NOT rebuild from scratch. Keep everything that already works and looks right, and make the smallest changes that satisfy the new requirements.
+
+STEP 1: AUDIT (read-only, no code changes yet)
+1. Read prompt-phase1.txt fully and read the current code.
+2. Produce a gap report as a table with three columns: requirement / status (done, partial, missing) / change you propose. Cover at least the items in "WHAT CHANGED" below, plus the "CLAUDE.md COMPLIANCE AUDIT" further down.
+3. Add a short plan listing the files you would add or change, and anything you think I should decide.
+4. STOP and wait for my approval before changing any file.
+
+WHAT CHANGED IN THE NEW PHASE 1 SPEC (compared with the original prompt)
+1. Hosting and backend decided. The front end stays on GitHub Pages (project site under /REPO-NAME/). The backend will be Supabase, added in Phase 2. Supabase does not host the site. In Phase 1 there must be NO Supabase code, no keys, and no network requests of any kind. Check for any fetch, XHR, WebSocket, external URL, CDN link or analytics in the code and remove them.
+2. Stack rules. Plain HTML, CSS and JavaScript using ES modules, no frameworks, no bundler, zero dependencies. All paths relative so the app works under /REPO-NAME/.
+3. Hash-based routing. GitHub Pages has no server-side routing, so navigation between pages and sub-screens must use hash routes (for example #/race, #/profile, #/profile/avatar, #/profile/competition). Remove any History API path routing (pushState with real paths). Make sure refreshing the page on any route works, and that the bottom bar and the back navigation still behave correctly.
+4. Health connect screen. It must show three non-functional cards labelled "coming later": "iPhone: Apple Shortcut", "Android: companion app" and "Manual entry". The old version only had a generic placeholder.
+5. Party rules screen. It must let me choose "plain steps" or "bonus for steps with elevation gain", updating mock state only.
+6. Account screen. Show mock name and email only. Do NOT display or mimic a password anywhere, not even pixelated or as dots. Show a "Change password" button that does nothing yet.
+7. Avatar schema documented. Create docs/avatar-schema.md describing the exact JSON format of the avatar: every key, the allowed part IDs per category, the color format (#RRGGBB) and a size limit. The database will enforce this schema in Phase 2, so the document must match what the code actually produces. Also confirm the code validates avatar data (whitelisted IDs, validated hex color) and rejects anything else, and that the SVG is built without concatenating raw strings into markup.
+8. Service worker. Cache only the static app shell with a versioned cache name, delete old caches on activate, never cache user data, and ignore cross-origin requests in the fetch handler.
+9. Architecture for later phases:
+   - All step data goes through a small StepsProvider interface (getStepsForDay, getStepsForRange) with a single mock implementation for now. Later there will be another implementation that reads steps stored in Supabase.
+   - All ranking and points rules live in one pure, testable module with no DOM code.
+   - State handling is separate from rendering so a backend can replace local state later.
+   - NEW: every user-visible string goes through one small strings module so text can be changed in one place.
+10. Roadmap for context only (do not build): Phase 2 Supabase backend, accounts, profile and avatar saving; Phase 3 parties, invites, photo upload; Phase 4 real steps through a Supabase Edge Function fed by an Apple Shortcut or Android companion app, plus manual entry; Phase 5 competitions and rewards.
+
+CLAUDE.md COMPLIANCE AUDIT (also report these in the gap table)
+- No innerHTML, outerHTML, document.write, eval, new Function, string setTimeout, or inline event handlers with non-constant data.
+- No inline <script>, no inline style attributes, no third-party scripts, fonts, or CDN links. The cartoony font must be self-hosted and open-licensed; tell me its name and license.
+- The CSP meta tag is present on every HTML page, is the first element in <head>, and matches CLAUDE.md (no 'unsafe-inline', no 'unsafe-eval'). Because there are no network requests in Phase 1, connect-src should be 'self' only.
+- Referrer meta tag present. External links use rel="noopener noreferrer".
+- manifest.webmanifest: relative start_url and scope, display standalone, orange theme color, icons 192, 512 and maskable 512; apple-touch-icon 180x180 PNG; iOS meta tags present.
+- Splash screen shows the icon centered on the same orange background for about 1.5 seconds.
+- Bottom bar respects safe-area insets on iPhone. An in-app hint explains "Share > Add to Home Screen" for iPhone users.
+- No secrets, no .env files, and nothing sensitive committed; .gitignore matches CLAUDE.md. All mock data is clearly labelled as mock.
+- Nothing is stored in localStorage, sessionStorage or IndexedDB unless it is strictly needed. If something is, tell me what and why.
+
+STEP 2: APPLY (only after I approve your plan)
+- Make the approved changes in small, reviewable steps. Preserve the existing look and behavior wherever the spec does not require a change.
+- Update the service worker cache version whenever app-shell files change.
+- Then re-test: every route and sub-screen via URL hash and refresh, the bottom bar, the avatar editor, offline loading of the app shell, and the browser console for CSP violations or errors.
+
+WHEN YOU FINISH
+1. Give me a short changelog: what you changed, what you left alone, and why.
+2. End with the Security Check from CLAUDE.md and list anything you could not verify.
+3. Tell me how to test on my phone, including how to force the service worker to update (cache version bump, close and reopen the installed app) so I do not see a stale version.
+4. If CLAUDE.md still shows [FILL IN] for the backend/auth provider or stack, do not edit it yourself. Tell me the two exact lines to paste: Backend / auth provider: "Supabase (Auth + Postgres + Edge Functions, free plan)"; Stack: "Plain HTML/CSS/JavaScript (ES modules), no framework, no bundler; pinned libraries vendored in /vendor/".

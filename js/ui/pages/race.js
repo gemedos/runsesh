@@ -1,9 +1,9 @@
 // Page 1: Race.
 
 import { loadStandings } from '../../data/competitionData.js';
-import { MOCK_PARTY_RULES } from '../../data/mockData.js';
 import { rankDay } from '../../rules/ranking.js';
 import { getActiveCompetition, getPartyMembers } from '../../state/store.js';
+import { STRINGS } from '../../strings.js';
 import { todayISO } from '../../util/date.js';
 import { circusHeader, competitionMeta, standingsList } from '../competitionBlock.js';
 import { avatarBadge, card, formatSteps, rankBadge } from '../components.js';
@@ -13,6 +13,7 @@ import { iosInstallHint } from '../installHint.js';
 const TRACK_WIDTH = 1600;
 const TRACK_PAD = 70;
 const LANE_TOPS = [14, 66, 118];
+const T = STRINGS.race;
 
 export async function renderRace({ state, steps }) {
   const today = todayISO();
@@ -20,6 +21,7 @@ export async function renderRace({ state, steps }) {
   const todaySteps = await Promise.all(members.map((m) => steps.getStepsForDay(m.id, today)));
   const stepsById = Object.fromEntries(members.map((m, i) => [m.id, todaySteps[i]]));
   const ranking = rankDay(stepsById, members.map((m) => m.id));
+  const goal = state.partyRules.dailyGoal;
 
   const competition = getActiveCompetition(state);
   const standings = competition ? await loadStandings(competition, members, steps, today) : null;
@@ -27,16 +29,16 @@ export async function renderRace({ state, steps }) {
   return h('div', { class: 'page page-race' },
     iosInstallHint(),
     partyBar(state, members),
-    trackCard(members, ranking),
-    dailyRankingCard(members, ranking),
+    trackCard(members, ranking, goal),
+    dailyRankingCard(members, ranking, goal),
     competitionCard(competition, standings, members, today),
   );
 }
 
 function partyBar(state, members) {
   return h('section', { class: 'party-bar' },
-    h('a', { class: 'btn btn-primary', attrs: { href: '#/party-create' }, text: 'Create a party' }),
-    h('div', { class: 'party-members', attrs: { 'aria-label': `${state.party.name} members` } },
+    h('a', { class: 'btn btn-primary', attrs: { href: '#/race/create-party' }, text: T.createParty }),
+    h('div', { class: 'party-members', attrs: { 'aria-label': T.partyMembers(state.party.name) } },
       members.map((m) => h('span', { class: 'party-member' },
         avatarBadge(m.avatar, { size: 'md' }),
         h('span', { class: 'party-member-name', text: m.name }),
@@ -45,8 +47,7 @@ function partyBar(state, members) {
   );
 }
 
-function trackCard(members, ranking) {
-  const goal = MOCK_PARTY_RULES.dailyGoal;
+function trackCard(members, ranking, goal) {
   const top = ranking.length ? ranking[0].value : 0;
   const scaleMax = Math.max(goal * 1.2, top * 1.08);
   const xFor = (value) => TRACK_PAD + (value / scaleMax) * (TRACK_WIDTH - 2 * TRACK_PAD);
@@ -56,12 +57,12 @@ function trackCard(members, ranking) {
   track.style.width = `${TRACK_WIDTH}px`;
 
   for (let v = 0; v <= scaleMax; v += 2000) {
-    const tick = h('span', { class: 'track-tick', text: v === 0 ? 'Start' : `${v / 1000}k` });
+    const tick = h('span', { class: 'track-tick', text: v === 0 ? T.trackStart : T.trackTick(v / 1000) });
     tick.style.left = `${xFor(v)}px`;
     track.append(tick);
   }
 
-  const flag = h('span', { class: 'track-goal' }, h('span', { class: 'track-goal-label', text: `Goal ${formatSteps(goal)}` }));
+  const flag = h('span', { class: 'track-goal' }, h('span', { class: 'track-goal-label', text: T.goal(formatSteps(goal)) }));
   flag.style.left = `${xFor(goal)}px`;
   track.append(flag);
 
@@ -73,7 +74,7 @@ function trackCard(members, ranking) {
     const lane = ranking.indexOf(row) % LANE_TOPS.length;
     const marker = h('button', {
       class: `runner${m.isMe ? ' runner--me' : ''}`,
-      attrs: { type: 'button', 'aria-label': `${m.name}: ${formatSteps(row.value)} steps today` },
+      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.name, formatSteps(row.value)) },
     },
     avatarBadge(m.avatar, { size: 'sm' }),
     h('span', { class: 'runner-label' }, h('b', { text: m.name }), ` ${formatSteps(row.value)}`),
@@ -90,10 +91,10 @@ function trackCard(members, ranking) {
     track.append(marker);
   });
 
-  const scroller = h('div', { class: 'track-scroll', attrs: { tabindex: '0', 'aria-label': 'Race track, scroll sideways' } }, track);
+  const scroller = h('div', { class: 'track-scroll', attrs: { tabindex: '0', 'aria-label': T.trackLabel } }, track);
   enableMouseDrag(scroller);
 
-  const node = card("Today's race", scroller, h('p', { class: 'hint', text: 'Swipe the track. Tap a runner for details.' }));
+  const node = card(T.trackTitle, scroller, h('p', { class: 'hint', text: T.trackHint }));
   onMount(node, () => requestAnimationFrame(() => {
     if (meMarker) scroller.scrollLeft = Math.max(0, meMarker.offsetLeft - scroller.clientWidth / 2);
   }));
@@ -120,10 +121,9 @@ function enableMouseDrag(scroller) {
   scroller.addEventListener('pointerleave', stop);
 }
 
-function dailyRankingCard(members, ranking) {
-  const goal = MOCK_PARTY_RULES.dailyGoal;
+function dailyRankingCard(members, ranking, goal) {
   const byId = new Map(members.map((m) => [m.id, m]));
-  return card('Today',
+  return card(T.todayTitle,
     h('ol', { class: 'ranking' },
       ranking.map((row) => {
         const m = byId.get(row.id);
@@ -147,14 +147,14 @@ function competitionCard(competition, standings, members, today) {
   if (!competition) {
     return h('section', { class: 'card card--circus' },
       circusHeader(),
-      h('p', { class: 'empty', text: 'No competition yet.' }),
-      h('a', { class: 'btn btn-primary', attrs: { href: '#/competition' }, text: 'Create a competition' }),
+      h('p', { class: 'empty', text: STRINGS.competition.none }),
+      h('a', { class: 'btn btn-primary', attrs: { href: '#/profile/competition' }, text: STRINGS.competition.create }),
     );
   }
   return h('section', { class: 'card card--circus' },
     circusHeader(),
     competitionMeta(competition, today),
     standingsList(competition, standings, members),
-    h('p', { class: 'hint', text: 'Mock rules for now: per-day modes score finished days only.' }),
+    h('p', { class: 'hint', text: STRINGS.competition.mockRulesHint }),
   );
 }

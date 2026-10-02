@@ -1,7 +1,10 @@
 // Validation for the "Create a competition" form. The backend must re-validate in Phase 5.
 
 import { isRankingMode } from '../rules/ranking.js';
+import { STRINGS } from '../strings.js';
 import { isISODate } from '../util/date.js';
+
+const E = STRINGS.competition.errors;
 
 export const COMPETITION_NAME_MAX = 40;
 
@@ -15,15 +18,15 @@ export function validateCompetitionInput(input) {
   const start = input.start;
   const end = input.end === '' || input.end === null || input.end === undefined ? null : input.end;
 
-  if (name.length > COMPETITION_NAME_MAX) errors.name = `Use at most ${COMPETITION_NAME_MAX} characters.`;
-  if (!isISODate(start)) errors.start = 'Pick a start date.';
-  if (end !== null && !isISODate(end)) errors.end = 'That end date is not valid.';
-  else if (end !== null && isISODate(start) && end < start) errors.end = 'The end date must be on or after the start date.';
-  if (!isRankingMode(input.mode)) errors.mode = 'Pick a ranking mode.';
-  if (typeof input.golden !== 'boolean') errors.golden = 'Invalid value.';
+  if (name.length > COMPETITION_NAME_MAX) errors.name = E.nameTooLong(COMPETITION_NAME_MAX);
+  if (!isISODate(start)) errors.start = E.startMissing;
+  if (end !== null && !isISODate(end)) errors.end = E.endInvalid;
+  else if (end !== null && isISODate(start) && end < start) errors.end = E.endBeforeStart;
+  if (!isRankingMode(input.mode)) errors.mode = E.modeMissing;
+  if (typeof input.golden !== 'boolean') errors.golden = E.invalid;
 
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, value: { name: name || 'Competition', start, end, mode: input.mode, golden: input.golden } };
+  return { ok: true, value: { name: name || STRINGS.competition.form.defaultName, start, end, mode: input.mode, golden: input.golden } };
 }
 
 /** Validates a stored competition (from localStorage) including its id. */

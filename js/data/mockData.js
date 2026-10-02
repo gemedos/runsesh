@@ -35,7 +35,7 @@ export const MOCK_PARTY = Object.freeze({
 export const MOCK_PARTY_RULES = Object.freeze({
   dailyGoal: 10000,
   dayResetsAt: 'Midnight (each member\'s local time)',
-  stepSources: 'Apple Health / Health Connect',
+  stepScoring: 'plain', // 'plain' or 'elevation_bonus' (see STEP_SCORING in rules/ranking.js)
   inviteOnly: true,
 });
 

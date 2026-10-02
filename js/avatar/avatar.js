@@ -8,6 +8,9 @@ import { ACCESSORIES, BODY, BOTTOMS, GOLDEN_SET, HAIR, HAIR_COLORS, SHOES, TOPS 
 
 export const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
+/** Upper bound for the serialized avatar JSON (a real one is ~130 characters). See docs/avatar-schema.md. */
+export const AVATAR_MAX_JSON_LENGTH = 512;
+
 /** Field name -> whitelist map. */
 export const AVATAR_FIELDS = Object.freeze({
   hair: HAIR,
@@ -46,6 +49,8 @@ export function validateAvatar(input) {
   if (Object.getPrototypeOf(input) !== Object.prototype && Object.getPrototypeOf(input) !== null) return null;
   const keys = Object.keys(input);
   if (keys.length !== ALLOWED_KEYS.length || !keys.every((k) => ALLOWED_KEYS.includes(k))) return null;
+  if (keys.some((k) => typeof input[k] === 'string' && input[k].length > AVATAR_MAX_JSON_LENGTH)) return null;
+  if (JSON.stringify(input).length > AVATAR_MAX_JSON_LENGTH) return null;
   if (input.v !== 1 || !isHexColor(input.skin)) return null;
 
   const out = { v: 1, skin: input.skin.toLowerCase() };

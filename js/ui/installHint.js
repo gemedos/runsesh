@@ -1,8 +1,10 @@
 // "Add to Home Screen" hint for iPhone/iPad users who opened the app in Safari.
 
+import { STRINGS } from '../strings.js';
 import { h, s } from './dom.js';
 
 const DISMISS_KEY = 'runsesh.iosHintDismissed';
+const T = STRINGS.installHint;
 
 export function isIos() {
   const ua = navigator.userAgent;
@@ -33,14 +35,12 @@ function shareIcon() {
 export function iosInstallHint() {
   if (!isIos() || isStandalone() || isDismissed()) return null;
   const box = h('div', { class: 'install-hint', attrs: { role: 'note' } },
-    h('p', {},
-      'Install runsesh: tap ', shareIcon(), h('b', { text: 'Share' }), ', then ', h('b', { text: 'Add to Home Screen' }), '.',
-    ),
+    h('p', {}, T.before, shareIcon(), h('b', { text: T.share }), T.middle, h('b', { text: T.addToHome }), T.after),
   );
   box.append(h('button', {
     class: 'install-hint-close',
     text: '×',
-    attrs: { type: 'button', 'aria-label': 'Dismiss' },
+    attrs: { type: 'button', 'aria-label': T.dismiss },
     on: {
       click: () => {
         try { localStorage.setItem(DISMISS_KEY, '1'); } catch { /* ignore */ }
