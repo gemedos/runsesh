@@ -1,0 +1,54 @@
+Create a progressive web app (PWA) both accesible from apple and android. You must always follow the guidelines described in the file attached named "Claude.md".
+The app is called "runsesh" create the logo as a drawing of the letters "RS" made from cartoony running tracks.
+The icon of the app is the logo onto an orange backgroung and when you enter the app the icon should be shown in the middle in a bigger size
+on the same background as the icon.
+
+When you enter the app make it so it hastwo pages that can be accessed by a bar in the lower part of the screen.
+
+The architecture of the first page goes as follows:
+- the top part is a create a party button followed by the icons of the members already in the party.
+- undearneat that a interactible slider with all the avatars of the party members the slider has the appeareance of a dirt track that slowly turns into other type of tracks such as green, rocky, flowery …
+- Underneath a daily ranking of all the party members. The ranking number should be in gold for the first silver for second and copper for third all in cartonny like fonts.
+- And underneath that a "COMPETITION" label in red over a circus type drawing. That should rank all the party members based on the competition rules applied by the party leader.
+
+The architecture of the second page goes as follows:
+- the top part has a depiction of your avatar and if you click on it you can access an customization page where you can change your avatar. The icon that shows on your profile when anyone looks at it and on the party members list is a close up of the avatar you have on.
+- Underneath a flight of options that show the next categories:
+	-"PARTY"-
+	 -party settings
+	 -Competition 
+	 
+	-"SETTINGS"-
+	 -login/log out
+	 -account
+	 -healt connect
+
+
+The functionality of the app goes as follows:
+the app tracks the steps of all party members using a connection to google health in case of android and apple health in case of apple .
+Their position in the track slider is determined by their number of steps. The daily ranking also ranks the party members by how many steps they have on that specific day.
+
+The COMPETITION ranking ranks members based on the set up chosen by the party leader. First the party leader choses a start date and a finish date. And then choses the ranking option, if by number of days won, by points where a day won gives 3 points second place 2 points and third place 1 point. Or by total number of steps in the month.
+
+in the second page as said before when clicking on the avatar depiction a new page appears where you can customize your avatar. The avatar is a simple dumy. The player can chose the color of the avatar using a RGB wheel. They can choose the hair clothes and accesories from many options of each different subcategory. By default the icon is a close up of the avatar of the user but they can upload a photo to use as their icon or pfp in other words.
+
+When the user clicks on "party settings" different options appear:
+-manage party members: where they can invite new members and kick players from the party
+-party rules: here they can choose how steps are counted if simply by number of steps or by applying a bonus if a steps counted was made in an increase of elevation
+
+When the user clicks on "Competition" a page appear following the circus like style mentioned before.
+if no competition already exists a button showing "create a Competition" if they click on it they will be prompted to setup the intial date and finish date (this can be left open) they will be asked about the rules of the competition from the ones mentioned before. And whether to add a reward to the current leader of the competition (which is a a set of golden wearables made of golden glasses golden running vest, golden boots, a jewelled golden crown and golden avatar color)
+
+when the user clicks on login/log out they can create an account if they dont have one, login into an existing account or log out of their account.
+
+when the user clicks on account they can see their account details wich include name, email, password (which should be pixelated)
+
+when the user clicks on health connect they should be able to manage their connection to their corresponding health app and permissions.
+
+
+
+
+The bar on the bottom part of the screen has two small drawings that when clicked enables the user to change between the two pages. The first one has a depiction of a running track with two curves that finishes in a finish line. and the second has a generic grey avatar head. Both drawings are in grey.
+
+
+The app will be hosted using GitHub pages and therefore the development should take that into account, but ill be the one to make the push to the repo on GitHub. Use html and css for the 

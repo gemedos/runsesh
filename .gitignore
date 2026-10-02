@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json
+service-account*.json
+
+# Dependencies and builds
+node_modules/
+dist/
+build/
+.vite/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
