@@ -2,7 +2,7 @@
 // and the Apple Shortcut (later phase) are described but not built yet.
 
 import { ManualStepsSource } from '../../steps/manualSource.js';
-import { fetchOwnHistory, STEPS_MAX, syncFromSource } from '../../steps/sync.js';
+import { fetchStepHistory, STEPS_MAX, syncFromSource } from '../../steps/sync.js';
 import { STRINGS } from '../../strings.js';
 import { addDays, formatDate, todayISO } from '../../util/date.js';
 import { card, formatSteps, screenHeader } from '../components.js';
@@ -24,14 +24,14 @@ function sourceCard(title, text, action, onAction, tag) {
   );
 }
 
-export function renderHealth({ state, toast }) {
+export function renderHealth({ state, toast, navigate }) {
   const userId = state.auth.userId;
   const today = todayISO();
 
   // --- history (today + last 6 days) ---
   const history = h('div', { class: 'history' }, h('p', { class: 'hint', text: STRINGS.auth.working }));
   async function loadHistory() {
-    const rows = await fetchOwnHistory(userId, addDays(today, -6), today).catch(() => null);
+    const rows = await fetchStepHistory(userId, addDays(today, -6), today).catch(() => null);
     if (!history.isConnected) return;
     if (!rows) { history.replaceChildren(h('p', { class: 'hint', text: T.historyFailed })); return; }
     if (!rows.length) { history.replaceChildren(h('p', { class: 'hint', text: T.historyEmpty })); return; }
@@ -88,7 +88,7 @@ export function renderHealth({ state, toast }) {
       androidSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       androidSection.focus({ preventScroll: true });
     }),
-    sourceCard(T.shortcutTitle, T.shortcutText, T.shortcutAction, null, STRINGS.common.comingLater),
+    sourceCard(T.shortcutTitle, T.shortcutText, T.shortcutAction, () => navigate('profile/iphone')),
     androidSection,
     h('p', { class: 'hint' }, T.privacy, ' ', h('a', { attrs: { href: 'privacy.html' }, text: T.privacyLink })),
   );

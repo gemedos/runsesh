@@ -937,3 +937,68 @@ input[type='password'], input[type='number'] {
 .history-row:first-child { border-top: 0; }
 .history-row span:first-child { flex: 1; }
 .history-source { color: var(--ink-soft); font-size: var(--fs-small); }
+
+/* iPhone set-up screen */
+.install-hint-link { color: var(--hint-ink); font-weight: 600; white-space: nowrap; }
+.device-status { margin: 0; font-weight: 600; }
+.device-status--ok { color: var(--teal); }
+.device-status--todo { color: var(--orange); }
+.steps-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; color: var(--ink); }
+.steps-list-icon { display: inline-block; margin-left: 6px; color: var(--hint-ink); vertical-align: -3px; }
+.key-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.key-reveal { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 16px; background: var(--surface-2); border: 2px dashed var(--orange); }
+.key-warning { margin: 0; font-weight: 600; color: var(--orange); }
+.key-field {
+  width: 100%; min-height: 48px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: var(--input-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+
+/* =========================================================================
+   Parties, invites, calendar, Hall of Fame
+   ========================================================================= */
+
+.no-party { gap: 14px; }
+.no-party-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.no-party-actions .btn { flex: 1 1 160px; }
+.join-preview { margin: 0; font-weight: 600; font-size: 1.05rem; }
+.member-row .tag { flex: none; }
+.member-row .btn-small { margin-left: auto; }
+
+/* Leader's own background photo: same frame as the theme art. */
+.circus-photo { aspect-ratio: 360 / 160; object-fit: cover; }
+
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal-month { margin: 0; font-size: 1.1rem; text-transform: capitalize; }
+.cal-nav {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 0; background: var(--surface-2); color: var(--ink);
+  font-size: 1.5rem; line-height: 1; cursor: pointer;
+}
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-weekday { text-align: center; font-size: var(--fs-micro); font-weight: 700; color: var(--muted); padding-bottom: 4px; }
+.cal-day {
+  display: grid; place-items: center;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 0; background: transparent;
+  color: var(--ink-soft); font-weight: 600; font-size: 0.9rem;
+}
+button.cal-day { cursor: pointer; }
+.cal-day--past { background: rgba(244, 196, 48, 0.22); color: var(--ink); }
+.cal-day--active { background: rgba(255, 138, 31, 0.3); color: var(--ink); }
+.cal-day--today { box-shadow: inset 0 0 0 2px var(--teal); }
+.cal-day--selected { background: var(--orange); color: #fff; }
+.cal-day:focus-visible { outline: 3px solid var(--orange); outline-offset: 1px; }
+.cal-detail:empty { display: none; }
+.cal-result { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
+.cal-result-title { margin: 6px 0 0; font-size: 1.05rem; }
+
+.hall-you { margin: 0; font-weight: 600; }
+.hall-you--empty { color: var(--orange); }
+.hall-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.hall-row { display: flex; align-items: center; gap: 16px; padding: 10px 6px 6px 14px; }

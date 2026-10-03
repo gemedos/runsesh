@@ -111,6 +111,101 @@ Console shows nothing from the URL or the session.
    forwards to `auth-callback.html`, which shows the invalid message.
 7. Restore the `token_hash` templates afterwards.
 
+## 6c. Apple Shortcut keys
+Deploy both Edge Functions first (`docs/edge-functions.md`). Use the console session from
+"Setup" (User A signed in as `A`). `FN` is the functions base URL.
+```js
+const FN = `${URL}/functions/v1`;
+const call = (path, opts = {}) => fetch(`${FN}/${path}`, opts).then(async (r) => [r.status, await r.json().catch(() => null)]);
+```
+1. **Create, shown once:** in the app (Profile → runsesh on iPhone → Create Shortcut key) create a
+   key and copy it into `KEY_A`. Leave the screen and come back: only "…last 4 characters" is shown.
+   In the dashboard Table Editor, `shortcut_keys` has one row for A with a 64-character
+   `key_hash` and **no** readable key.
+   ```js
+   const KEY_A = '<paste>';
+   ```
+2. **Ingest works for the owner only:**
+   ```js
+   await call('ingest-steps', { method: 'POST', headers: { Authorization: `Bearer ${KEY_A}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ day: today, steps: 4321 }) });
+   // expect [200, {ok: true}]; A's daily_steps for today = 4321, source 'shortcut'
+   await call('ingest-steps', { method: 'POST', headers: { Authorization: `Bearer ${KEY_A}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: B_ID, day: today, steps: 1 }) });
+   // expect [200, …] but the row written is A's (user_id in the body is ignored); B unchanged
+   ```
+3. **Invalid input → 400:** `steps: -1`, `steps: 100001`, `steps: 12.5`, `steps: "9000"`,
+   `day: "2026-02-30"`, `day: shift(-4)` (outside the window), a body that is not JSON.
+4. **Wrong method → 405:** `await call('ingest-steps')` (GET).
+5. **Unknown / malformed / revoked key → 401:** `Bearer rs_` + 43 random characters; `Bearer abc`;
+   no header; then revoke the key in the app and repeat step 2 → 401.
+6. **Rate limit:** with a fresh key, send 31 valid requests within an hour → the 31st returns 429.
+7. **Replace:** create a new key → the old key returns 401, the new one works.
+8. **No client access:**
+   ```js
+   await A.from('shortcut_keys').select('*');        // expect error 42501 (permission denied)
+   await A.rpc('ingest_shortcut_steps', { p_key_hash: '0'.repeat(64), p_day: today, p_steps: 1 }); // expect error 42501
+   await client().from('shortcut_keys').select('*'); // anon: expect error 42501
+   ```
+9. **shortcut-key requires a session:** `await call('shortcut-key')` without a session → 401;
+   calling it from another web origin is blocked by CORS.
+10. **Nothing logged:** dashboard → Edge Functions → each function → Logs: no keys, step values
+    or emails appear (only status lines).
+11. **Account deletion** (when built): the user's `shortcut_keys` row is gone.
+
+## 6d. Parties, invites, competitions, background photo
+Use three test accounts: **A** (leader), **B** (member), **C** (not in A's party). In the console,
+sign each one in as in "Setup" (`A`, `B`, `C` clients). Replace `<…>` placeholders.
+
+**Party rules**
+```js
+await A.rpc('create_party', { p_name: 'Test party' });            // ok, A is leader
+await A.rpc('create_party', { p_name: 'Second' });                // error already_in_party
+const { data: CODE } = await A.rpc('create_invite');              // 24-char code, shown once
+await B.rpc('join_party', { p_code: CODE });                      // 'ok'
+await B.rpc('join_party', { p_code: CODE });                      // 'already_in_party'
+await C.rpc('join_party', { p_code: 'x'.repeat(24) });            // 'invalid_invite'
+```
+1. **One party per user:** B cannot create or join a second party (above).
+2. **Reads stay inside the party:** as C, `C.from('parties').select('*')`,
+   `C.from('party_members').select('*')`, `C.from('competitions').select('*')`,
+   `C.from('daily_steps').select('*').eq('user_id', A_ID)` and
+   `C.from('profiles').select('*').eq('id', A_ID)` all return `[]`. As B, A's profile and steps are visible.
+3. **No direct writes:** as B, `B.from('party_members').insert({ user_id: B_ID, party_id: '<id>', role: 'leader' })`,
+   `B.from('party_members').update({ role: 'leader' }).eq('user_id', B_ID)` and
+   `B.from('party_members').delete().eq('user_id', A_ID)` all fail or change nothing.
+4. **Leader-only actions:** as B: `B.rpc('kick_member', { p_user: A_ID })` → error `not_leader`;
+   `B.rpc('expire_all_invites')` → `not_leader`; `B.from('parties').update({ name: 'Hacked' }).eq('id', '<party id>').select()` → `[]`.
+   As A: `A.rpc('kick_member', { p_user: B_ID })` works and B is out.
+5. **Invites:** a code works for 7 days and 25 joins at most; after `A.rpc('revoke_my_invites')`
+   A's codes return `'invalid_invite'` but B stays a member; after `A.rpc('expire_all_invites')`
+   every code of the party is dead, members stay. A member's codes stop working when they leave.
+6. **Rate limit:** as C, 11 `join_party`/`preview_invite` calls with wrong codes within an hour →
+   the 11th returns `'rate_limited'` (and the counter is not undone by failures).
+7. **Party size:** the 21st member gets `'party_full'`.
+8. **Leadership handover:** A leaves (`A.rpc('leave_party')`) → B becomes leader. When the last
+   member leaves, the party is deleted. Deleting the leader's account behaves like leaving.
+9. **Invite link in the URL:** open `…/#/join/<CODE>` → the address bar immediately shows `…/#/join`;
+   the code is not in browser history or in any request to GitHub Pages (Network tab).
+
+**Competitions**
+10. As B: `B.from('competitions').insert({ party_id: '<id>', name: 'x', start_day: today, mode: 'days_won' })`
+    → 42501; `update`/`delete` on the active one → no rows changed; `B.rpc('end_competition', { p_id: '<id>' })` → `not_allowed`.
+11. As A: create one competition; a second insert while it is active → unique-constraint error.
+12. As A: `end_competition` → `competition_results` has one row per member with frozen ranks; the
+    competition can no longer be edited or deleted (history); a new one can be created.
+13. As C: `C.from('competition_results').select('*')` → `[]`.
+14. A competition whose `end_day` has passed is frozen the next time any member opens the app
+    (`finalize_due_competitions`).
+15. Constraints: `theme: 'neon'`, `mode: 'x'`, `end_day` before `start_day`, a `background_path`
+    pointing to another party's folder → all rejected (23514).
+
+**Background photo (storage bucket `competition-backgrounds`)**
+16. As B (member): uploading to `<party id>/<uuid>.jpg` → denied; reading A's photo via
+    `B.storage.from('competition-backgrounds').createSignedUrl(path, 60)` → works.
+17. As C: `createSignedUrl` for that path → denied; uploading into A's party folder → denied.
+18. Upload a PNG with GPS EXIF data as the leader, download it from the dashboard → it is a JPEG with
+    no EXIF/GPS block (re-encoded in the browser). A non-image renamed to `.jpg` is rejected.
+19. Files over 2 MB or with another content type are rejected by the bucket itself.
+
 ## 7. Logout clears everything
 1. Log in, browse every screen, save steps and an avatar.
 2. Log out (Profile → Login / Log out, or Account → Log out).

@@ -49,8 +49,8 @@ export function isTimezone(value) {
 
 /** Routes the app may return to after login ("next"). Anything else is ignored. */
 export const SAFE_NEXT_ROUTES = Object.freeze([
-  'race', 'competition', 'profile', 'profile/avatar', 'profile/members', 'profile/rules',
-  'profile/competition', 'profile/login', 'profile/account', 'profile/health',
+  'race', 'join', 'competition', 'profile', 'profile/avatar', 'profile/members', 'profile/rules',
+  'profile/competition', 'profile/login', 'profile/account', 'profile/health', 'profile/iphone',
 ]);
 
 export function safeNext(value) {

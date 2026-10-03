@@ -10,6 +10,7 @@ import { todayISO } from '../../util/date.js';
 import { avatarBadge, formatSteps, rankBadge, rankedAvatar } from '../components.js';
 import { h, onMount, s } from '../dom.js';
 import { iosInstallHint } from '../installHint.js';
+import { partyGate } from './party.js';
 
 const T = STRINGS.race;
 
@@ -25,8 +26,13 @@ const LANES = [
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export async function renderRace({ state, steps }) {
+export async function renderRace({ state, steps, navigate }) {
+  // Not in a party yet (or still loading): offer to create or join one.
+  const gate = partyGate(state, navigate);
+  if (gate) return h('div', { class: 'page page-race' }, iosInstallHint(), gate);
+
   const today = todayISO();
+  const meId = state.auth.userId;
   const members = getPartyMembers(state);
   const todaySteps = await Promise.all(members.map((m) => steps.getStepsForDay(m.id, today)));
   const stepsById = Object.fromEntries(members.map((m, i) => [m.id, todaySteps[i]]));
@@ -35,19 +41,20 @@ export async function renderRace({ state, steps }) {
   return h('div', { class: 'page page-race' },
     iosInstallHint(),
     partyBar(state, members),
-    stage(members, ranking, stepsById[state.meId] || 0, state.meId),
+    stage(members, ranking, stepsById[meId] || 0, meId),
     rankingsSection(members, ranking),
   );
 }
 
+/** Party row: "Invite friends" (every member may invite) followed by the members. */
 function partyBar(state, members) {
   return h('section', { class: 'party-bar' },
-    h('a', { class: 'btn btn-promo btn-compact', attrs: { href: '#/race/create-party' } },
-      h('span', { class: 'btn-plus', attrs: { 'aria-hidden': 'true' }, text: '+' }), h('span', { text: T.createParty })),
+    h('a', { class: 'btn btn-promo btn-compact', attrs: { href: '#/profile/members' } },
+      h('span', { class: 'btn-plus', attrs: { 'aria-hidden': 'true' }, text: '+' }), h('span', { text: STRINGS.party.inviteButton })),
     h('div', { class: 'party-members', attrs: { 'aria-label': T.partyMembers(state.party.name) } },
       members.map((m) => h('span', { class: 'party-member' },
         avatarBadge(m.avatar, { size: 'md' }),
-        h('span', { class: 'party-member-name', text: m.isMe ? T.you : m.name }),
+        h('span', { class: 'party-member-name', text: m.isMe ? T.you : m.name || STRINGS.members.unnamed }),
       )),
     ),
   );
@@ -94,12 +101,12 @@ function stage(members, ranking, mySteps, meId) {
     const lane = LANES[index % LANES.length];
     const runner = h('button', {
       class: `runner${m.isMe ? ' runner--me' : ''}`,
-      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.isMe ? T.you : m.name, formatSteps(row.value)) },
+      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.isMe ? T.you : m.name || STRINGS.members.unnamed, formatSteps(row.value)) },
       dataset: { id: m.id },
     },
     h('span', { class: 'runner-bubble' }, formatSteps(row.value), rankBadge(row.rank)),
     h('span', { class: 'runner-figure' }, buildAvatarSvg(m.avatar)),
-    h('span', { class: 'runner-name', text: m.isMe ? T.you : m.name }),
+    h('span', { class: 'runner-name', text: m.isMe ? T.you : m.name || STRINGS.members.unnamed }),
     );
     runner.style.left = `${xFor(row.value)}px`;
     runner.style.bottom = `${lane.bottom}px`;
@@ -137,7 +144,7 @@ function stage(members, ranking, mySteps, meId) {
     const m = byId.get(row.id);
     const dot = h('button', {
       class: `mm-dot${m.isMe ? ' mm-dot--me' : ''}`,
-      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.isMe ? T.you : m.name, formatSteps(row.value)) },
+      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.isMe ? T.you : m.name || STRINGS.members.unnamed, formatSteps(row.value)) },
     }, avatarBadge(m.avatar, { size: 'sm' }));
     dot.style.left = pct(xFor(row.value));
     dot.addEventListener('click', () => focusRunner(m.id, true));
@@ -282,10 +289,9 @@ function countUp(el, target) {
 
 function rankingsSection(members, ranking) {
   const byId = new Map(members.map((m) => [m.id, m]));
-  const nameOf = (m) => (m.isMe ? T.you : m.name);
+  const nameOf = (m) => (m.isMe ? T.you : m.name || STRINGS.members.unnamed);
   return h('section', { class: 'section' },
     h('h2', { class: 'section-title', text: T.todayTitle }),
-    h('p', { class: 'hint', text: T.mockOthers }), // other members are MOCK until Phase 3
     h('ol', { class: 'ranking' },
       ranking.map((row, i) => {
         const m = byId.get(row.id);

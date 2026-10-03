@@ -1,5 +1,6 @@
 // Themed competition header and standings list (Competition page and settings screen).
 
+import { DEFAULT_AVATAR } from '../avatar/avatar.js';
 import { DEFAULT_COMPETITION_THEME, isCompetitionTheme } from '../state/competition.js';
 import { STRINGS } from '../strings.js';
 import { formatDate } from '../util/date.js';
@@ -19,13 +20,16 @@ export const THEME_ART = Object.freeze({
 
 const safeTheme = (theme) => (isCompetitionTheme(theme) ? theme : DEFAULT_COMPETITION_THEME);
 
-/** Header art with the red COMPETITION label on top. */
-export function circusHeader(theme = DEFAULT_COMPETITION_THEME) {
+/**
+ * Header art with the red COMPETITION label on top. `photoUrl` (the leader's own background,
+ * a short-lived signed Supabase Storage URL) replaces the theme picture when present.
+ */
+export function circusHeader(theme = DEFAULT_COMPETITION_THEME, photoUrl = null) {
   const t = safeTheme(theme);
-  return h('div', { class: 'circus' },
-    h('img', { class: 'circus-art', attrs: { src: THEME_ART[t], alt: '' } }),
-    h('span', { class: 'circus-label', text: T.banner }),
-  );
+  const art = photoUrl
+    ? h('img', { class: 'circus-art circus-photo', attrs: { src: photoUrl, alt: '', referrerpolicy: 'no-referrer' } })
+    : h('img', { class: 'circus-art', attrs: { src: THEME_ART[t], alt: '' } });
+  return h('div', { class: 'circus' }, art, h('span', { class: 'circus-label', text: T.banner }));
 }
 
 /** Class names for a themed competition card. */
@@ -58,6 +62,7 @@ export function competitionMeta(competition, today) {
   );
 }
 
+/** Live standings of the active competition (rows: {id, value, rank}). */
 export function standingsList(competition, standings, members) {
   const byId = new Map(members.map((m) => [m.id, m]));
   return h('ol', { class: 'ranking' },
@@ -66,9 +71,21 @@ export function standingsList(competition, standings, members) {
       if (!m) return null;
       return h('li', { class: `rank-row${m.isMe ? ' rank-row--me' : ''}` },
         rankedAvatar(m.avatar, row.rank),
-        h('span', { class: 'rank-name', text: m.name }),
+        h('span', { class: 'rank-name', text: m.name || STRINGS.members.unnamed }),
         h('span', { class: 'rank-score', text: scoreLabel(competition.mode, row.value) }),
       );
     }),
+  );
+}
+
+/** Frozen results of a finished competition (rows carry their own name/avatar snapshot). */
+export function resultsList(competition, results, meId) {
+  if (!results || !results.length) return h('p', { class: 'hint', text: T.noResults });
+  return h('ol', { class: 'ranking' },
+    results.map((row) => h('li', { class: `rank-row${row.id === meId ? ' rank-row--me' : ''}` },
+      rankedAvatar(row.avatar || DEFAULT_AVATAR, row.rank),
+      h('span', { class: 'rank-name', text: row.name || T.someone }),
+      h('span', { class: 'rank-score', text: scoreLabel(competition.mode, row.value) }),
+    )),
   );
 }

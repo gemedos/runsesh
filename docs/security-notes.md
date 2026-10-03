@@ -41,6 +41,66 @@ They stop casual abuse and mistakes, not a determined cheater.
 - **Social trust:** parties are small groups of friends; show the source and last update
   time next to each number so members can notice odd values.
 
+## Apple Shortcut keys (CLAUDE.md §2.1 exception, approved 2026-10-04)
+iPhone web apps cannot read Apple Health, so an Apple Shortcut sends the daily total. A
+Shortcut cannot hold a Supabase session, so each user can create one personal **Shortcut key**.
+
+How it is protected:
+- Created by the `shortcut-key` Edge Function from 32 random bytes (`crypto.getRandomValues`),
+  format `rs_` + 43 base64url characters (256 bits; guessing is infeasible).
+- Only its **SHA-256 hash** is stored (`public.shortcut_keys`, no client access: RLS on with no
+  policies, all privileges revoked from `anon`/`authenticated`). The app shows the key once
+  and never stores it; it is never logged and only travels in the `Authorization` header.
+- One key per user. Creating a new one replaces the old; the user can revoke it; deleting the
+  account deletes it.
+- The key can only call `ingest-steps`, which writes the **key owner's** `daily_steps` row with
+  `source = 'shortcut'`. The owner always comes from the key, never from the request. The usual
+  constraints and the 3-days-back / 1-day-ahead window apply. It cannot read anything or log in.
+- 30 requests per key per hour (`public.ingest_shortcut_steps`, callable only by the service role).
+
+What it does **not** protect against:
+- A leaked key (shared Shortcut, iCloud backup, someone with the phone) lets that person
+  overwrite the owner's recent step totals until the key is revoked or replaced.
+- Requests with unknown keys are not rate limited per IP (Supabase has no built-in per-IP
+  limit for functions); they only cost Edge Function invocations from the monthly quota.
+- Steps sent by a Shortcut are still **self-reported**: the user can edit the Shortcut or the
+  Health data. `source = 'shortcut'` says which path was used, not that the number is true.
+- **Double counting:** the Shortcut sums raw Health samples. If both the iPhone and an Apple Watch
+  record, the sum counts steps twice unless the Shortcut filters to one source (the set-up
+  guide says so). Unlike Health Connect on Android, Shortcuts has no de-duplicated daily total.
+
+## Parties and invite links (CLAUDE.md exception, approved 2026-10-05)
+- **One party per user** (primary key on `party_members.user_id`), one leader per party (unique
+  index). Membership only changes through database functions that check the caller's role:
+  every member may create invite links and leave; only the leader may remove members, expire
+  all invite links, rename the party, change its rules and manage competitions.
+- **Visibility:** party members can read each other's display name, avatar, time zone and daily
+  step totals. Nobody outside the party can; email addresses are never readable by other users.
+- **Invite codes:** 18 random bytes (pgcrypto), only the SHA-256 hash stored, valid 7 days and
+  25 joins, revocable (each member revokes their own links; the leader expires all of them).
+  Links carry the code only after `#` (`…/#/join/CODE`), so it is never sent to GitHub Pages or in
+  a Referer header; the app removes it from the address bar and history at once and keeps it in
+  memory only. Joining/previewing is limited to 10 attempts per user per hour, counted even
+  when the code is wrong. Parties are capped at 20 members.
+- **What it does not prevent:** anyone who gets a working link (forwarded chat, screenshot) can
+  join until it expires or is turned off. Leaders can remove unwanted members.
+- **Leadership handover:** if the leader leaves or deletes their account, the longest-standing
+  member becomes leader automatically; a party with nobody left is deleted.
+
+## Competitions and the background photo
+- One active competition per party (unique index). Every member takes part automatically.
+  Only the leader creates, edits, ends or deletes it (RLS + `end_competition`).
+- When a competition ends (by date, or "End competition now"), its standings are **frozen** into
+  `competition_results` by the database, with a snapshot of each member's display name and
+  avatar. These rows are deleted if that person deletes their account.
+- **Photo upload:** only the leader, only into their own party's folder of the private bucket
+  `competition-backgrounds`; members read it through short-lived signed URLs (1 hour).
+  The browser re-encodes every photo to JPEG (max 1600 px), which strips all metadata such as
+  GPS location; the bucket accepts only JPEG up to 2 MB. CSP `img-src` allows the project's
+  Supabase origin for this (no other origin).
+- Photos are not scanned for content. A leader could upload something unpleasant; members can
+  leave the party. Deleting a party does not yet delete its photos from storage (clean-up TODO).
+
 ## Keys and secrets
 - The browser only ever has the **publishable (anon) key** (`js/config.js`). It is public by
   design; RLS decides what each signed-in user can do.

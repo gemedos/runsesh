@@ -23,7 +23,7 @@ function isDismissed() {
   }
 }
 
-function shareIcon() {
+export function shareIcon() {
   return s('svg', { class: 'share-icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
     s('path', { d: 'M8 10 H6 V21 H18 V10 H16' }),
     s('path', { d: 'M12 3 V14' }),
@@ -35,7 +35,11 @@ function shareIcon() {
 export function iosInstallHint() {
   if (!isIos() || isStandalone() || isDismissed()) return null;
   const box = h('div', { class: 'install-hint', attrs: { role: 'note' } },
-    h('p', {}, T.before, shareIcon(), h('b', { text: T.share }), T.middle, h('b', { text: T.addToHome }), T.after),
+    h('p', {},
+      T.before, shareIcon(), h('b', { text: T.share }), T.middle, h('b', { text: T.addToHome }), T.after,
+      ' ', T.why, ' ',
+      h('a', { class: 'install-hint-link', attrs: { href: '#/profile/iphone' }, text: T.howTo }),
+    ),
   );
   box.append(h('button', {
     class: 'install-hint-close',

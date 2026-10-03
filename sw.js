@@ -1,7 +1,7 @@
 // Service worker: caches ONLY the static app shell. No user data, no API responses.
 // Bump CACHE_VERSION whenever any file in APP_SHELL changes.
 
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v10';
 const CACHE_NAME = `runsesh-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -35,13 +35,16 @@ const APP_SHELL = [
   './js/avatar/parts.js',
   './js/config.js',
   './js/data/competitionData.js',
-  './js/data/mockData.js',
+  './js/data/competitionRepo.js',
+  './js/data/partyRepo.js',
   './js/data/profileRepo.js',
+  './js/data/shortcutKeyRepo.js',
   './js/data/stepsProvider.js',
   './js/data/supabaseStepsProvider.js',
   './js/platform.js',
   './js/rules/ranking.js',
   './js/state/competition.js',
+  './js/state/invite.js',
   './js/state/store.js',
   './js/steps/manualSource.js',
   './js/steps/stepsSource.js',
@@ -49,6 +52,7 @@ const APP_SHELL = [
   './js/strings.js',
   './js/supabaseClient.js',
   './js/ui/competitionBlock.js',
+  './js/ui/competitionCalendar.js',
   './js/ui/components.js',
   './js/ui/dom.js',
   './js/ui/installHint.js',
@@ -58,11 +62,13 @@ const APP_SHELL = [
   './js/ui/pages/competition.js',
   './js/ui/pages/competitionHub.js',
   './js/ui/pages/health.js',
-  './js/ui/pages/placeholders.js',
+  './js/ui/pages/iphone.js',
+  './js/ui/pages/party.js',
   './js/ui/pages/profile.js',
   './js/ui/pages/race.js',
   './js/ui/theme.js',
   './js/util/date.js',
+  './js/util/image.js',
 ];
 
 const SHELL_URLS = new Set(APP_SHELL.map((path) => new URL(path, self.registration.scope).href));

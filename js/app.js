@@ -5,8 +5,8 @@ import { initAuth } from './auth/session.js';
 import { safeNext } from './auth/rules.js';
 import { isConfigured } from './config.js';
 import { SupabaseStepsProvider } from './data/supabaseStepsProvider.js';
-import { createStepsProvider } from './data/stepsProvider.js';
 import { isNativeApp } from './platform.js';
+import { captureInviteFromHash } from './state/invite.js';
 import { getState, subscribe } from './state/store.js';
 import { STRINGS } from './strings.js';
 import { h, runMountHooks } from './ui/dom.js';
@@ -16,7 +16,8 @@ import { renderAvatarEditor } from './ui/pages/avatarEditor.js';
 import { renderCompetition } from './ui/pages/competition.js';
 import { renderCompetitionHub } from './ui/pages/competitionHub.js';
 import { renderHealth } from './ui/pages/health.js';
-import { renderCreateParty, renderMembers, renderRules } from './ui/pages/placeholders.js';
+import { renderIphone } from './ui/pages/iphone.js';
+import { renderCreateParty, renderJoin, renderMembers, renderRules } from './ui/pages/party.js';
 import { renderProfile } from './ui/pages/profile.js';
 import { renderRace } from './ui/pages/race.js';
 import { applyTheme } from './ui/theme.js';
@@ -34,6 +35,7 @@ const ROUTES = Object.freeze({
   reset: { render: renderResetScreen, public: true },
   race: { tab: 'race', render: renderRace },
   'race/create-party': { tab: 'race', render: renderCreateParty },
+  join: { tab: 'race', render: renderJoin },
   competition: { tab: 'competition', render: renderCompetitionHub },
   profile: { tab: 'profile', render: renderProfile },
   'profile/avatar': { tab: 'profile', render: renderAvatarEditor, ownsState: true },
@@ -43,13 +45,15 @@ const ROUTES = Object.freeze({
   'profile/login': { tab: 'profile', render: renderLogin },
   'profile/account': { tab: 'profile', render: renderAccount },
   'profile/health': { tab: 'profile', render: renderHealth },
+  'profile/iphone': { tab: 'profile', render: renderIphone },
 });
 const DEFAULT_ROUTE = 'race';
 
 const view = document.getElementById('view');
 const bannerRoot = document.getElementById('banner-root');
 // The signed-in user's own steps come from Supabase; other party members stay MOCK (Phase 3).
-const steps = new SupabaseStepsProvider(() => (getState().auth ? getState().auth.userId : null), createStepsProvider());
+// Daily totals of the user and their party members (RLS limits what can be read).
+const steps = new SupabaseStepsProvider();
 let renderSeq = 0;
 let lastRendered = null;
 let pendingNext = null; // where to go after logging in (validated against an allowlist)
@@ -138,7 +142,11 @@ async function render({ scrollTop = false } = {}) {
   if (scrollTop) window.scrollTo(0, 0);
 }
 
-window.addEventListener('hashchange', () => render({ scrollTop: true }));
+window.addEventListener('hashchange', () => {
+  // An invite link opened while the app is running: keep the code in memory, clear the URL.
+  if (captureInviteFromHash()) return; // the URL change re-triggers hashchange
+  render({ scrollTop: true });
+});
 subscribe(() => {
   const name = routeFromHash();
   // The avatar editor keeps its own draft; don't wipe it on unrelated updates.
@@ -223,6 +231,7 @@ async function boot() {
     location.replace(`auth-callback.html${location.search}${location.hash}`);
     return;
   }
+  captureInviteFromHash(); // #/join/CODE → code kept in memory, address bar cleared
   applyTheme();
   applyShellStrings();
   setTimeout(hideSplash, SPLASH_MS);
