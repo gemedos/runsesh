@@ -1,7 +1,7 @@
 // Service worker: caches ONLY the static app shell. No user data, no API responses.
 // Bump CACHE_VERSION whenever any file in APP_SHELL changes.
 
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const CACHE_NAME = `runsesh-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -25,23 +25,39 @@ const APP_SHELL = [
   './img/comp-spring.svg',
   './img/comp-summer.svg',
   './img/comp-winter.svg',
+  './privacy.html',
+  './css/doc.css',
+  './vendor/supabase.js',
   './js/app.js',
+  './js/auth/rules.js',
+  './js/auth/session.js',
   './js/avatar/avatar.js',
   './js/avatar/parts.js',
+  './js/config.js',
   './js/data/competitionData.js',
   './js/data/mockData.js',
+  './js/data/profileRepo.js',
   './js/data/stepsProvider.js',
+  './js/data/supabaseStepsProvider.js',
+  './js/platform.js',
   './js/rules/ranking.js',
   './js/state/competition.js',
   './js/state/store.js',
+  './js/steps/manualSource.js',
+  './js/steps/stepsSource.js',
+  './js/steps/sync.js',
   './js/strings.js',
+  './js/supabaseClient.js',
   './js/ui/competitionBlock.js',
   './js/ui/components.js',
   './js/ui/dom.js',
   './js/ui/installHint.js',
+  './js/ui/pages/account.js',
+  './js/ui/pages/auth.js',
   './js/ui/pages/avatarEditor.js',
   './js/ui/pages/competition.js',
   './js/ui/pages/competitionHub.js',
+  './js/ui/pages/health.js',
   './js/ui/pages/placeholders.js',
   './js/ui/pages/profile.js',
   './js/ui/pages/race.js',

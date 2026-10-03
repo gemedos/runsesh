@@ -1,0 +1,158 @@
+Read CLAUDE.md in the project root and follow it at all times. If anything in this prompt conflicts with CLAUDE.md, STOP and ask me instead of working around it. Do not run git push or git commit; I will do that myself.
+
+CONTEXT
+runsesh Phase 1 (UI shell with mock data) is finished. Phase 2 adds real accounts, a Supabase backend, a validated steps data path, and (in a separate gated Part B) an Android app that reads steps from Health Connect. The web front end stays on GitHub Pages; Supabase provides Auth and Postgres only and does not host the website.
+
+This prompt has two parts:
+- PART A: backend, accounts, profile, steps storage, manual step entry, privacy page, and making the web code ready to run inside a native Android shell.
+- PART B: the Android shell with Health Connect. Do NOT start Part B until I write exactly: "start Part B".
+
+DECISIONS ALREADY MADE (from research, do not revisit without telling me)
+1. Android steps come from Health Connect, read on the device by a native Android app. A browser or PWA cannot read Health Connect. The app is a Capacitor wrapper around the same web code, using the official @capacitor/health-fitness plugin, distributed as a sideloaded APK (Part B).
+2. Not used: the Google Health API (cloud REST, restricted scopes needing a security review, currently not onboarding new projects, covers Fitbit/Pixel Watch data only); the Google Fit REST API (being shut down at the end of 2026); third-party aggregator SDKs; a Trusted Web Activity (it has no native bridge); community "webhook" apps.
+3. iPhone steps (Apple Shortcut sending steps to a Supabase Edge Function) are a later phase. Do not build them now, but keep the database ready: the steps table already allows source = 'shortcut'.
+4. All step values are self-reported by the user's device and can be faked. Server-side limits only stop casual abuse. Document this in docs/security-notes.md.
+
+STEP 0: PLAN FIRST (Part A only)
+Read the existing code, docs/avatar-schema.md and CLAUDE.md. Then give me a short plan listing: tables and columns, every RLS policy in plain words, every trigger or constraint, the files you will add or change, the exact CSP change, and the manual steps I must do in the Supabase dashboard. Wait for my approval before writing code.
+
+PART A: SCOPE (build only this)
+
+1. SUPABASE CLIENT
+- Add the browser build of @supabase/supabase-js pinned to an exact version and vendored in /vendor/. Download it with npm into a temporary folder, copy only the browser build into /vendor/, and record the version and SHA-256 in vendor/README.md. No CDN, no import from a URL.
+- js/config.js holds two placeholders: PASTE_PROJECT_URL and PASTE_PUBLISHABLE_KEY. I will fill them in. Only the publishable (anon) key may ever appear in the code. Never ask me for the service_role or secret key, and never put one anywhere in the repo.
+- js/supabaseClient.js creates the client with the PKCE auth flow.
+- Update the CSP connect-src to exactly my Supabase project origin and nothing else, and tell me what you changed.
+
+2. DATABASE (SQL files in supabase/migrations/, each named with a 14-digit UTC timestamp prefix such as 20261003120000_create_profiles.sql, one concern per file, listed in the order they must run. I will apply them by hand in the Supabase SQL editor. Do NOT run supabase init, do NOT create supabase/config.toml, and do NOT add any GitHub Action or script that deploys to Supabase.)
+a) Table profiles: id uuid primary key references auth.users(id) on delete cascade, display_name text, avatar jsonb, timezone text not null default 'UTC', created_at, updated_at.
+   - Constraints: display_name trimmed, length 2 to 30; timezone length 1 to 64; avatar must match docs/avatar-schema.md exactly (only allowed keys, color matches ^#[0-9A-Fa-f]{6}$, part IDs within allowed values) and be under 2 KB. Enforce in the database, not only in the browser.
+   - RLS enabled. Revoke all privileges from anon. Grant select and update to authenticated only. Policies: a user can select and update only their own row (USING and WITH CHECK on auth.uid() = id). No client insert, no client delete.
+   - Trigger on auth.users creates the profile row at signup. If it uses SECURITY DEFINER, set search_path to empty and fully qualify every object name, and explain it in a comment. Add an updated_at trigger.
+b) Table daily_steps: user_id uuid references auth.users(id) on delete cascade, day date, steps integer, source text, updated_at timestamptz default now(), primary key (user_id, day).
+   - Checks: steps between 0 and 100000; source in ('manual','health_connect','shortcut').
+   - A BEFORE INSERT OR UPDATE trigger rejects a day older than 3 days before today or more than 1 day after today (UTC), and sets updated_at. Set search_path to empty and fully qualify names.
+   - RLS enabled. Revoke all from anon. Grant select, insert and update to authenticated. Policies: select own rows; insert own rows (WITH CHECK auth.uid() = user_id); update own rows (USING and WITH CHECK). No delete policy. Leave a comment that Phase 3 will extend select to members of the same party.
+c) For any other table you think is needed, ask me first. Default deny everywhere.
+
+3. AUTH FLOWS
+- Sign up (email, password, display name), email confirmation required, sign in, sign out, "Sign out on all devices" (global scope), forgot password, and set-new-password screen.
+- Redirects: GitHub Pages has no server-side routing, so use hash routing or a dedicated static callback page. Validate any redirect or "next" value against an allowlist of internal paths. Email links open in the phone's browser on the website, not in the Android app; show a message saying "After confirming, return to the app and log in".
+- Passwords: client-side rules mirror CLAUDE.md (minimum 15 characters while there is no MFA, accept at least 64, allow paste and password managers, no composition rules, no hints or security questions). Tell me to set the same minimum in the dashboard.
+- No account enumeration: sign-up, login and forgot-password show the same generic messages whether or not the email exists.
+- Disable the submit button while a request is pending (cosmetic only; real rate limits are in the dashboard).
+- On SIGNED_OUT: clear service worker caches, IndexedDB and in-memory state as CLAUDE.md requires. Do not copy tokens anywhere; use the SDK's default session storage.
+- A route guard shows only login/sign-up to logged-out users. It is for usability only; RLS is the real protection; say so in a comment.
+- Account screen: real display name and email, edit display name, Change password (Auth API), Log out, Log out of all devices. Never show or hint at the password.
+- Set profiles.timezone from the browser (Intl.DateTimeFormat().resolvedOptions().timeZone) at signup, validated against a simple pattern.
+- MFA (TOTP): plan it. Build enrol, verify and remove only after everything else works and I confirm.
+
+4. AVATAR PERSISTENCE
+- On login, load the avatar from profiles and show it everywhere. When the user saves in the avatar editor, validate in the browser and update their own profile row. If the database rejects it, show a generic error and keep the previous avatar.
+
+5. STEPS DATA PATH AND MANUAL ENTRY
+- Define a StepsSource interface in js/steps/: id, isAvailable(), connect(), disconnect(), and fetchDays(fromDay, toDay) returning [{day, steps}]. Implement one source now: "manual".
+- A sync module takes values from a StepsSource, validates them (integer, 0 to 100000, day in the allowed window, otherwise discard and tell the user), and upserts into daily_steps for the logged-in user with the correct source. Never trust values blindly, even from our own sources.
+- Implement SupabaseStepsProvider (the Phase 1 StepsProvider interface) for the logged-in user's own steps. Other party members stay mock until Phase 3 and must stay clearly labelled as mock.
+- Health connect screen: the "Manual entry" card now works (enter today's steps, saved with source 'manual'; show today and the last 7 days of my own history). The Apple Shortcut card stays "coming later". The Android card says the Android app is required and links to a placeholder section (Part B adds the real flow).
+- Write docs/security-notes.md explaining plainly that steps are self-reported and can be edited or faked, what the server limits do and do not prevent, and what would be needed to trust them more.
+
+6. PRIVACY PAGE
+- Create privacy.html as a static page (same CSP, no scripts needed) linked from the sign-up screen, the Account screen and the Health connect screen. It must be reachable at a public https URL, because Health Connect requires one in Part B.
+- Draft content, written in plain language: data collected (email, display name, avatar, daily step totals; on Android, steps are read from Health Connect only after the user grants permission and only daily totals are sent to the server); no selling or sharing; purpose (rankings among party members); storage with Supabase; retention until account deletion; how to request access or deletion; contact placeholder.
+- Mark every unfinished field as TODO. Add a visible note that this is a draft and I must review it and fill in my contact details, and tell me you are not a lawyer. Plan an account and data deletion path (an Edge Function using Supabase's own function secrets, never a key I paste), but do not build it until I approve.
+
+7. WEB CODE READY FOR A NATIVE SHELL
+- The Android app will bundle these same files locally and run them from an https://localhost-style origin. Therefore: relative paths only, hash routing only, no use of location.pathname for logic, no absolute links to the GitHub Pages origin in app code.
+- Create js/platform.js exporting isNativeApp() (true only when running inside the native shell, detected through the Capacitor global if present). Do not register the service worker when isNativeApp() is true.
+- Everything else stays identical on web and native.
+
+8. ERRORS, LOGGING, SERVICE WORKER
+- Generic user-facing messages. No tokens, emails, step data or personal data in console logs.
+- Bump the service worker cache version. Confirm calls to Supabase are never cached.
+
+9. TESTS (docs/security-tests.md: manual steps plus browser-console snippets using the publishable key and two test accounts)
+- User A cannot read or update user B's profile or daily_steps by calling the REST API directly with A's session.
+- A logged-out request (anon key only) to profiles and daily_steps is denied.
+- Invalid avatar JSON (extra key, bad color, oversized) is rejected by the database.
+- display_name and timezone limits are enforced by the database.
+- daily_steps rejects: negative steps, steps above 100000, an unknown source, a day older than 3 days, a day in the far future, and a row with someone else's user_id.
+- Sign-up, login and reset responses are identical for existing and non-existing emails.
+- After logout, caches and local data are empty and API calls fail.
+- No CSP violations in the console during normal use.
+- Search the built files for secrets, "service_role", and the words "secret" and "password" and report what you find.
+
+PART A: DO NOT BUILD YET
+Parties, invites, photo upload, the Apple Shortcut ingestion function, competitions, rewards, the Capacitor project, the Android project, any health plugin, MFA.
+
+PART A: WHEN YOU FINISH
+1. End with the Security Check from CLAUDE.md and list anything you could not verify.
+2. Print this manual checklist for me, because you cannot see the Supabase dashboard:
+   - Create the project and store the database password in a password manager.
+   - Run the migrations in order in the SQL editor.
+   - Authentication settings: Site URL set to the exact GitHub Pages URL; Redirect URLs set to the exact URLs I need (no wildcards); email confirmation on; minimum password length 15; leaked-password protection on if my plan offers it; rate limits reviewed; unused login providers off.
+   - Table Editor / Security Advisor: RLS shows as enabled on every table, with no warnings.
+   - The service_role key is not in the repo, in js/config.js, or on this machine.
+   - Review privacy.html and fill in every TODO.
+   - Free plan note: the project pauses after 7 days without activity and must be restored from the dashboard.
+3. STOP. Do not start Part B. Wait for me to write "start Part B".
+
+=====================================================================
+PART B (ONLY AFTER I WRITE "start Part B"): ANDROID SHELL WITH HEALTH CONNECT
+=====================================================================
+
+GOAL
+An Android app (sideloaded APK) containing the same web app, bundled locally, that reads my daily step totals from Health Connect and syncs them to daily_steps. Build a small proof first, then the full flow.
+
+FACTS YOU MUST DESIGN AROUND (verify against the current official docs before relying on any of them, and tell me if something differs)
+- Health Connect needs Android 9 or higher with Google Play services. On Android 14 and higher it is built into the system and can count steps on the phone by itself once any app has been granted the steps read permission. On Android 13 and lower the user must install the Health Connect app from the Play Store, and steps only exist if some other app writes them into Health Connect.
+- On Android 14+, native phone steps only start accumulating after my app is granted the steps permission. Tell users that steps count from the moment they connect.
+- Since the June 2026 update, steps counted natively by Health Connect are attributed to a synthetic package name. Therefore NEVER filter steps by data origin or package name, and NEVER sum raw records. Use the platform's aggregation (daily SUM) so overlapping phone and watch data is de-duplicated.
+- Reading in the foreground needs no extra permission. Background reading needs a separate permission, which we do not want.
+- Without the history permission Health Connect only returns data from 30 days before the first grant. That is enough for daily totals.
+- The official @capacitor/health-fitness plugin returns results as JSON-encoded strings; parse and validate them. It does not offer elevation or floors for Android, so the "elevation bonus" party rule is NOT supported in this part (keep the setting in the UI as "coming later"). It has no background sync to a server, so sync happens when the app opens or resumes.
+- If its configuration file is missing, the plugin declares every Health Connect permission. We must therefore create the config file and verify the final merged manifest. The plugin requires a public https privacy policy URL, and permission requests fail without one.
+- If the user denies the permission twice, Android locks the app out of asking again. Explain how to reset it during testing (Health Connect app, App permissions, allow all then remove all).
+- I have NOT verified that a sideloaded app (not installed from Google Play) can use Health Connect. The proof in step 2 must settle this before you build anything else.
+
+STEP B0: PLAN AND CLAUDE.md ADDENDUM (no code yet)
+1. Check my machine and tell me what is missing, without installing system software yourself: Node (version required by the current Capacitor release), a JDK (version required), Android Studio and Android SDK, and ANDROID_HOME. Look up the current Capacitor requirements in the official docs. Give me exact install steps for Windows.
+2. Present each new npm dependency (Capacitor core, CLI, Android platform, @capacitor/health-fitness) with name, exact version, purpose and maintainer, verified on the official registry and docs, as CLAUDE.md Section 8 requires. Wait for my approval.
+3. Draft an "Android shell" addendum for CLAUDE.md and show it to me. Do not edit CLAUDE.md until I approve. It must cover: bundled local web files only; no remote content in the WebView; android:allowBackup="false"; cleartext traffic disabled; no server.url; WebView debugging only in debug builds; allowNavigation limited to what is strictly needed; only the permissions listed below; step data validated; keystore and passwords never committed and never seen by Claude; checksum published with each APK.
+4. Give me a short plan and wait for approval.
+
+STEP B1: PROJECT SETUP
+- Create the Capacitor project in a subfolder (for example /android-app/) so the web app at the repo root keeps deploying to GitHub Pages unchanged. A copy script collects only the needed web files into the web directory used by Capacitor (never .env, docs, supabase/, or tooling).
+- Ask me for the appId (suggest a reverse-domain style) and app name. Pin exact versions and commit the lockfile.
+- capacitor.config: no server.url, cleartext false, mixed content disallowed.
+- Android manifest and Gradle: allowBackup false, usesCleartextTraffic false, a network security config permitting only https, no exported components other than what Health Connect and Capacitor require, debuggable only in debug builds.
+- android/healthfitness.config.json with: permissions { "STEPS": "Read" } only; disableBackgroundJobs true; disableReadHealthDataHistory true; privacyPolicyUrl set to the public URL of privacy.html (ask me for it).
+- Build the merged manifest and list every permission it contains. It must contain only what we need (internet, Health Connect steps read, and the Health Connect rationale entries). If anything else appears (activity recognition, notifications, foreground service, background read, exact alarm, history), remove it and tell me why it appeared.
+
+STEP B2: PROOF OF CONCEPT (stop here and let me test)
+- Minimal screen in the native app: "Connect Health Connect", then show today's step total read through the plugin using daily SUM aggregation, with no origin filtering.
+- Build a debug APK and tell me how to install it on my phone (adb or file transfer) and how to read the result.
+- STOP. I will test on my own phone. Do not continue until I report the result. If the proof fails because the app is sideloaded or for any other reason, report the exact error and options; do not try to bypass Android or Health Connect protections.
+
+STEP B3: FULL FLOW (only after I report that B2 works)
+1. Module js/health/healthConnectSource.js implementing StepsSource. It is the ONLY code that touches the plugin; nothing else may import it. It should: report availability (available, Health Connect not installed, unsupported); request only the steps read permission; fetch daily SUM totals for today and yesterday; parse the JSON-string result; keep only integers from 0 to 100000 and only valid dates; discard the rest. It must never log step values.
+2. Sync: on app open and on resume (at most once every few minutes), fetch today and yesterday and upsert into daily_steps with source 'health_connect' through the existing validated sync module. Handle being offline or logged out gracefully (no crash, no data kept in new storage places).
+3. Health connect screen in the native app: shows state (available / not installed / unsupported; permission granted or not), today's steps, last sync time, and buttons: Connect, Sync now, Disconnect (revoke permissions through the plugin), Open Health Connect. Show the explanations about Android 14 vs older versions and "steps count from when you connect". On the web (non-native) version this card explains that the Android app is needed and offers manual entry.
+4. On logout in the native app: clear local app data and caches as CLAUDE.md requires.
+5. Tests (add to docs/security-tests.md, all manual on my phone): the total in my app matches the total in the Health Connect app for today; with a phone and a watch recording at the same time the total is not doubled; denying permission is handled; airplane mode is handled; logout clears everything; the permission lockout reset procedure works; the merged manifest permissions list is unchanged from B1.
+
+STEP B4: RELEASE BUILD AND DISTRIBUTION
+- Signing: I create the keystore myself outside the repository folder with keytool. Give me the exact Windows command and explain how to back it up. You must never see, create or store the keystore or its passwords. Gradle reads the signing details from a local file or environment variables that are listed in .gitignore.
+- Add a version scheme (versionName and versionCode) and a short release checklist.
+- Give me the exact Windows command to compute the SHA-256 of the APK (certutil -hashfile <apk> SHA256) to publish next to the download.
+- I will upload the APK to GitHub Releases myself. You do not publish anything.
+- Write docs/android-install.md for my users in plain language: how to allow installing from the browser or file manager, what the Play Protect prompt means, how to verify the checksum, how to grant the Health Connect permission, how to update (no automatic updates), and how to uninstall.
+- Optional, only if I approve: a small in-app "new version available" notice that compares the installed version with a version.json file on the website. Tell me which extra CSP origin it needs before adding it.
+
+PART B: DO NOT BUILD
+iOS native app, Google Health API, Google Fit REST, third-party aggregator SDKs, background sync, elevation or floors support, Play Store publishing, any remote WebView content.
+
+PART B: WHEN YOU FINISH
+1. Give me a changelog of what was added and what was left alone.
+2. End with the Security Check from CLAUDE.md and list anything you could not verify, especially anything that depends on my phone, my Android version, or the Supabase dashboard.
+3. Remind me: never commit the keystore, never share its password, and back it up somewhere safe, because losing it means installed copies can no longer be updated.

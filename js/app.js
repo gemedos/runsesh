@@ -1,13 +1,22 @@
-// App entry: splash, hash router, rendering, service worker + update prompt.
+// App entry: splash, auth bootstrap, hash router with route guard, rendering,
+// service worker + update prompt.
 
+import { initAuth } from './auth/session.js';
+import { safeNext } from './auth/rules.js';
+import { isConfigured } from './config.js';
+import { SupabaseStepsProvider } from './data/supabaseStepsProvider.js';
 import { createStepsProvider } from './data/stepsProvider.js';
+import { isNativeApp } from './platform.js';
 import { getState, subscribe } from './state/store.js';
 import { STRINGS } from './strings.js';
 import { h, runMountHooks } from './ui/dom.js';
+import { renderAccount, renderLogin } from './ui/pages/account.js';
+import { renderForgotScreen, renderLoginScreen, renderNotConfigured, renderResetScreen, renderSignupScreen } from './ui/pages/auth.js';
 import { renderAvatarEditor } from './ui/pages/avatarEditor.js';
 import { renderCompetition } from './ui/pages/competition.js';
 import { renderCompetitionHub } from './ui/pages/competitionHub.js';
-import { renderAccount, renderCreateParty, renderHealth, renderLogin, renderMembers, renderRules } from './ui/pages/placeholders.js';
+import { renderHealth } from './ui/pages/health.js';
+import { renderCreateParty, renderMembers, renderRules } from './ui/pages/placeholders.js';
 import { renderProfile } from './ui/pages/profile.js';
 import { renderRace } from './ui/pages/race.js';
 import { applyTheme } from './ui/theme.js';
@@ -16,8 +25,13 @@ const SPLASH_MS = 1500;
 const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
 // Hash routes only (GitHub Pages has no server-side routing; no History API is used).
-// This is the allowlist: any other hash is replaced with #/race.
+// This is the allowlist: any other hash is replaced with the default route.
+// `public: true` routes are the only ones shown to logged-out users.
 const ROUTES = Object.freeze({
+  login: { render: renderLoginScreen, public: true, guestOnly: true },
+  signup: { render: renderSignupScreen, public: true, guestOnly: true },
+  forgot: { render: renderForgotScreen, public: true, guestOnly: true },
+  reset: { render: renderResetScreen, public: true },
   race: { tab: 'race', render: renderRace },
   'race/create-party': { tab: 'race', render: renderCreateParty },
   competition: { tab: 'competition', render: renderCompetitionHub },
@@ -34,9 +48,11 @@ const DEFAULT_ROUTE = 'race';
 
 const view = document.getElementById('view');
 const bannerRoot = document.getElementById('banner-root');
-const steps = createStepsProvider();
+// The signed-in user's own steps come from Supabase; other party members stay MOCK (Phase 3).
+const steps = new SupabaseStepsProvider(() => (getState().auth ? getState().auth.userId : null), createStepsProvider());
 let renderSeq = 0;
 let lastRendered = null;
+let pendingNext = null; // where to go after logging in (validated against an allowlist)
 
 function isRoute(name) {
   return Object.prototype.hasOwnProperty.call(ROUTES, name);
@@ -46,10 +62,6 @@ function isRoute(name) {
 function routeFromHash() {
   const name = location.hash.replace(/^#\/?/, '').replace(/\/$/, '');
   return isRoute(name) ? name : null;
-}
-
-function currentRoute() {
-  return routeFromHash() || DEFAULT_ROUTE;
 }
 
 function navigate(name) {
@@ -62,16 +74,44 @@ function toast(message) {
   setTimeout(() => el.remove(), 2600);
 }
 
+/**
+ * Route guard. This is for usability only: it decides which screens to show.
+ * The real protection is Row Level Security in the database, which refuses every
+ * request that is not from the signed-in owner of the data.
+ * @returns {string|null} a route to redirect to, or null to render `name`
+ */
+function guard(name) {
+  const signedIn = Boolean(getState().auth);
+  const route = ROUTES[name];
+  if (!signedIn && !route.public) {
+    pendingNext = safeNext(name);
+    return 'login';
+  }
+  if (signedIn && route.guestOnly) return DEFAULT_ROUTE;
+  return null;
+}
+
 async function render({ scrollTop = false } = {}) {
-  if (!routeFromHash()) {
-    // Unknown or empty hash: normalise without adding a history entry (triggers hashchange).
-    location.replace(`#/${DEFAULT_ROUTE}`);
+  if (!isConfigured()) {
+    document.body.classList.add('is-guest');
+    view.replaceChildren(renderNotConfigured());
     return;
   }
-  const seq = ++renderSeq;
-  const name = currentRoute();
-  const route = ROUTES[name];
+  const name = routeFromHash();
+  if (!name) {
+    // Unknown or empty hash: normalise without adding a history entry (triggers hashchange).
+    location.replace(`#/${getState().auth ? DEFAULT_ROUTE : 'login'}`);
+    return;
+  }
+  const redirect = guard(name);
+  if (redirect) {
+    location.replace(`#/${redirect}`);
+    return;
+  }
 
+  const seq = ++renderSeq;
+  const route = ROUTES[name];
+  document.body.classList.toggle('is-guest', Boolean(route.public));
   for (const tab of document.querySelectorAll('.tab')) {
     const active = tab.dataset.tab === route.tab;
     tab.classList.toggle('tab--active', active);
@@ -81,12 +121,14 @@ async function render({ scrollTop = false } = {}) {
 
   let node;
   try {
-    node = await route.render({ state: getState(), steps, navigate, toast });
+    const next = name === 'login' ? pendingNext : null;
+    node = await route.render({ state: getState(), steps, navigate, toast, next });
   } catch (err) {
-    if (IS_DEV) console.error(err);
+    if (IS_DEV) console.error('render failed', err && err.name);
     node = h('div', { class: 'page' }, h('p', { class: 'empty', text: STRINGS.app.genericError }));
   }
   if (seq !== renderSeq) return; // a newer render started meanwhile
+  if (name !== 'login') pendingNext = null;
 
   // Animate in only on screen changes, not on in-place updates of the same screen.
   if (name !== lastRendered) node.classList.add('is-entering');
@@ -98,8 +140,9 @@ async function render({ scrollTop = false } = {}) {
 
 window.addEventListener('hashchange', () => render({ scrollTop: true }));
 subscribe(() => {
+  const name = routeFromHash();
   // The avatar editor keeps its own draft; don't wipe it on unrelated updates.
-  if (!ROUTES[currentRoute()].ownsState) render();
+  if (!name || !ROUTES[name].ownsState) render();
 });
 
 // --- Static shell text (from the strings module) ----------------------------
@@ -141,6 +184,7 @@ function showUpdateBanner(worker) {
 }
 
 function registerServiceWorker() {
+  if (isNativeApp()) return; // the Android app bundles its files; no service worker there
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol !== 'https:' && !IS_DEV) return; // HTTPS only (localhost allowed for development)
 
@@ -161,15 +205,36 @@ function registerServiceWorker() {
         if (worker.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner(worker);
       });
     });
-  }).catch((err) => {
-    if (IS_DEV) console.error('Service worker registration failed', err);
+  }).catch(() => {
+    if (IS_DEV) console.error('Service worker registration failed');
   });
 }
 
 // --- Boot -------------------------------------------------------------------
 
-applyTheme();
-applyShellStrings();
-render();
-setTimeout(hideSplash, SPLASH_MS);
-registerServiceWorker();
+async function boot() {
+  // Email links that landed on the main page (e.g. the redirect fell back to the Site URL)
+  // belong to the callback page, which validates them: token_hash, a PKCE code, or an
+  // error (in the query or in a non-route hash such as #error=…).
+  const query = new URLSearchParams(location.search);
+  const hash = location.hash.startsWith('#/') ? new URLSearchParams() : new URLSearchParams(location.hash.replace(/^#/, ''));
+  const linkKeys = ['token_hash', 'code', 'error', 'error_code'];
+  if (linkKeys.some((key) => query.has(key) || hash.has(key))) {
+    location.replace(`auth-callback.html${location.search}${location.hash}`);
+    return;
+  }
+  applyTheme();
+  applyShellStrings();
+  setTimeout(hideSplash, SPLASH_MS);
+  if (isConfigured()) {
+    try {
+      await initAuth(() => render());
+    } catch {
+      if (IS_DEV) console.error('auth init failed');
+    }
+  }
+  render();
+  registerServiceWorker();
+}
+
+boot();

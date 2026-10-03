@@ -1,0 +1,2 @@
+# Vendored third-party files: keep them byte-for-byte (their SHA-256 is recorded in vendor/README.md)
+vendor/** -text

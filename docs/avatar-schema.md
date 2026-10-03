@@ -1,7 +1,7 @@
 # Avatar JSON schema (v1)
 
-This is the exact format the app produces and accepts. In Phase 2 the Supabase database must
-enforce the same rules (CHECK constraints or a validation function); the client check in
+This is the exact format the app produces and accepts. The Supabase database
+enforces the same rules (see "Database enforcement" below); the client check in
 `js/avatar/avatar.js` (`validateAvatar`) is for UX only and is **not** a security boundary.
 
 Source of truth in code:
@@ -66,23 +66,14 @@ golden items. Who owns which reward must be decided by the backend, never by the
 in an attribute is the validated `skin` color (and the hair color, looked up by whitelisted ID).
 No string concatenation into markup, no `innerHTML`.
 
-## Suggested Phase 2 database check (for reference, not applied)
+## Database enforcement (Phase 2)
 
-```sql
--- avatar jsonb column on the profile table
-check (
-  octet_length(avatar::text) <= 512
-  and avatar ?& array['v','skin','hair','hairColor','top','bottom','shoes','acc']
-  and (select count(*) from jsonb_object_keys(avatar)) = 8
-  and avatar->>'v' = '1'
-  and avatar->>'skin' ~ '^#[0-9a-fA-F]{6}$'
-  and avatar->>'hair' in ('h_none','h_buzz','h_short','h_spiky','h_long','h_bob','h_ponytail','h_bun','h_curly','h_mohawk')
-  and avatar->>'hairColor' in ('hc_black','hc_brown','hc_auburn','hc_blonde','hc_grey','hc_blue','hc_pink','hc_green')
-  and avatar->>'top' in ('t_tee','t_tank','t_jersey','t_hoodie','t_jacket','t_singlet','t_tracksuit')
-  and avatar->>'bottom' in ('b_shorts','b_runshorts','b_leggings','b_joggers','b_skirt')
-  and avatar->>'shoes' in ('s_none','s_runner','s_white','s_blue','s_pink')
-  and avatar->>'acc' in ('a_none','a_cap','a_headband','a_sunglasses','a_glasses','a_headphones','a_scarf','a_medal','a_watch')
-)
-```
-Postgres does not allow subqueries in CHECK constraints, so the key-count part will need a small
-`immutable` validation function in Phase 2. Treat this as a sketch to review then.
+`public.profiles.avatar` has the constraint `profiles_avatar_check`, which calls
+`private.is_valid_avatar(jsonb)` (migration `supabase/migrations/20261003120000_create_private_schema.sql`).
+It enforces exactly the rules above: the 8 keys only, `v = 1`, `skin` matching
+`^#[0-9A-Fa-f]{6}$`, every part ID in the lists above, and a serialized size under 2 KB
+(the browser additionally limits it to 512 characters). `avatar` may be `null`, which means
+"use the default avatar".
+
+If you change the schema, update this file, `js/avatar/parts.js`, `js/strings.js`,
+`tests/avatar.test.js` and add a **new** migration that replaces `private.is_valid_avatar`.
