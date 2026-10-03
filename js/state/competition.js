@@ -8,6 +8,14 @@ const E = STRINGS.competition.errors;
 
 export const COMPETITION_NAME_MAX = 40;
 
+/** Visual themes for a competition. 'circus' is the default look. */
+export const COMPETITION_THEMES = Object.freeze(['circus', 'spring', 'summer', 'fall', 'winter']);
+export const DEFAULT_COMPETITION_THEME = 'circus';
+
+export function isCompetitionTheme(value) {
+  return COMPETITION_THEMES.includes(value);
+}
+
 /**
  * @param {object} input raw form values { name, start, end, mode, golden }
  * @returns {{ ok: true, value: object } | { ok: false, errors: Record<string, string> }}

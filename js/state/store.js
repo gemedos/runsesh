@@ -10,7 +10,7 @@ import { MOCK_ACCOUNT, MOCK_ME_ID, MOCK_MEMBERS, MOCK_PARTY, MOCK_PARTY_RULES, m
 import { isStepScoring } from '../rules/ranking.js';
 import { STRINGS } from '../strings.js';
 import { todayISO } from '../util/date.js';
-import { validateCompetitionInput, validateStoredCompetition } from './competition.js';
+import { DEFAULT_COMPETITION_THEME, isCompetitionTheme, validateCompetitionInput, validateStoredCompetition } from './competition.js';
 
 const STORAGE_KEY = 'runsesh.local.v1';
 const MAX_COMPETITIONS = 20;
@@ -31,6 +31,10 @@ function createInitialState(saved) {
     avatar: saved.avatar,
     competitions: Object.freeze(competitions),
     activeCompetitionId: activeId,
+    // Competition id -> visual theme. Only non-default choices are stored.
+    competitionThemes: Object.freeze(Object.fromEntries(
+      Object.entries(saved.competitionThemes).filter(([id]) => competitions.some((c) => c.id === id)),
+    )),
   });
 }
 
@@ -79,6 +83,16 @@ export function setActiveCompetition(id) {
   if (state.competitions.some((c) => c.id === id)) setState({ activeCompetitionId: id });
 }
 
+/** Sets a competition's visual theme (local only). @returns {boolean} false if rejected */
+export function setCompetitionTheme(id, theme) {
+  if (!isCompetitionTheme(theme) || !state.competitions.some((c) => c.id === id)) return false;
+  const themes = { ...state.competitionThemes };
+  if (theme === DEFAULT_COMPETITION_THEME) delete themes[id];
+  else themes[id] = theme;
+  setState({ competitionThemes: Object.freeze(themes) });
+  return true;
+}
+
 /** MOCK: party setting, local only. @returns {boolean} false if the value was rejected */
 export function setStepScoring(value) {
   if (!isStepScoring(value)) return false;
@@ -107,12 +121,16 @@ export function getActiveCompetition(s = state) {
   return s.competitions.find((c) => c.id === s.activeCompetitionId) || null;
 }
 
+export function getCompetitionTheme(competition, s = state) {
+  return (competition && s.competitionThemes[competition.id]) || DEFAULT_COMPETITION_THEME;
+}
+
 // ---------------------------------------------------------------------------
 // Persistence
 // ---------------------------------------------------------------------------
 
 function loadPersisted() {
-  const fallback = { avatar: DEFAULT_AVATAR, competitions: [], activeCompetitionId: null, stepScoring: null };
+  const fallback = { avatar: DEFAULT_AVATAR, competitions: [], activeCompetitionId: null, stepScoring: null, competitionThemes: {} };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw || raw.length > 20000) return fallback;
@@ -126,10 +144,21 @@ function loadPersisted() {
       competitions,
       activeCompetitionId: typeof data.activeCompetitionId === 'string' ? data.activeCompetitionId : null,
       stepScoring: isStepScoring(data.stepScoring) ? data.stepScoring : null,
+      competitionThemes: readThemes(data.competitionThemes),
     };
   } catch {
     return fallback;
   }
+}
+
+/** Keeps only entries with a safe id and a whitelisted theme. */
+function readThemes(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [id, theme] of Object.entries(raw).slice(0, MAX_COMPETITIONS + 1)) {
+    if (/^[\w-]{1,64}$/.test(id) && isCompetitionTheme(theme)) out[id] = theme;
+  }
+  return out;
 }
 
 function persist() {
@@ -139,6 +168,7 @@ function persist() {
       competitions: state.competitions.filter((c) => !c.mock),
       activeCompetitionId: state.activeCompetitionId,
       stepScoring: state.partyRules.stepScoring,
+      competitionThemes: state.competitionThemes,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {

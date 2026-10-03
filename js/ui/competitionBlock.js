@@ -1,5 +1,6 @@
-// Circus-style competition header and standings list (used on Race and Competition screens).
+// Themed competition header and standings list (Competition page and settings screen).
 
+import { DEFAULT_COMPETITION_THEME, isCompetitionTheme } from '../state/competition.js';
 import { STRINGS } from '../strings.js';
 import { formatDate } from '../util/date.js';
 import { formatSteps, rankedAvatar } from './components.js';
@@ -7,11 +8,29 @@ import { h } from './dom.js';
 
 const T = STRINGS.competition;
 
-export function circusHeader() {
+// Theme -> header artwork (constants; the theme itself is validated against the whitelist).
+export const THEME_ART = Object.freeze({
+  circus: 'img/circus.svg',
+  spring: 'img/comp-spring.svg',
+  summer: 'img/comp-summer.svg',
+  fall: 'img/comp-fall.svg',
+  winter: 'img/comp-winter.svg',
+});
+
+const safeTheme = (theme) => (isCompetitionTheme(theme) ? theme : DEFAULT_COMPETITION_THEME);
+
+/** Header art with the red COMPETITION label on top. */
+export function circusHeader(theme = DEFAULT_COMPETITION_THEME) {
+  const t = safeTheme(theme);
   return h('div', { class: 'circus' },
-    h('img', { class: 'circus-art', attrs: { src: 'img/circus.svg', alt: '' } }),
+    h('img', { class: 'circus-art', attrs: { src: THEME_ART[t], alt: '' } }),
     h('span', { class: 'circus-label', text: T.banner }),
   );
+}
+
+/** Class names for a themed competition card. */
+export function themedCardClass(theme) {
+  return `card card--circus comp-theme--${safeTheme(theme)}`;
 }
 
 export function scoreLabel(mode, value) {

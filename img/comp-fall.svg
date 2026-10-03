@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 160">
+  <!-- Spooky autumn night: moon, bats, haunted tree, ghost, gravestones, carved pumpkins, spider -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c0f2e"/><stop offset="0.7" stop-color="#4a2350"/><stop offset="1" stop-color="#8a3d3a"/></linearGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#ffe680"/><stop offset="1" stop-color="#ffb300"/></radialGradient>
+  </defs>
+  <rect width="360" height="160" fill="url(#sky)"/>
+  <!-- big moon -->
+  <circle cx="276" cy="44" r="28" fill="#fff1c1" opacity="0.25"/>
+  <circle cx="276" cy="44" r="21" fill="#fff1c1"/>
+  <circle cx="268" cy="38" r="4" fill="#efe0a6"/>
+  <circle cx="284" cy="50" r="3" fill="#efe0a6"/>
+  <!-- bats -->
+  <g fill="#120818">
+    <path d="M196 30 c4 -6 8 -6 10 -2 c2 -3 4 -3 4 0 c0 -3 2 -3 4 0 c2 -4 6 -4 10 2 c-4 -1 -8 1 -10 4 c-2 -2 -6 -2 -8 0 c-2 -3 -6 -5 -10 -4 z"/>
+    <path d="M300 82 c3 -5 6 -5 8 -1 c1 -2 3 -2 3 0 c0 -2 2 -2 3 0 c2 -4 5 -4 8 1 c-3 -1 -6 1 -8 3 c-2 -2 -4 -2 -6 0 c-2 -2 -5 -4 -8 -3 z"/>
+    <path d="M150 54 c3 -4 5 -4 7 -1 c1 -2 2 -2 3 0 c1 -2 2 -2 3 0 c2 -3 4 -3 7 1 c-3 -1 -5 1 -7 3 c-1 -2 -3 -2 -5 0 c-2 -2 -4 -3 -8 -3 z"/>
+  </g>
+  <!-- haunted tree -->
+  <path d="M46 150 C50 120 44 96 36 78 M44 104 C30 96 22 84 20 70 M42 92 C54 80 66 76 76 66 M66 76 C70 66 68 56 74 46 M36 80 C34 66 40 56 36 44" stroke="#120818" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <!-- ground and gravestones -->
+  <path d="M0 132 C70 124 140 128 210 132 C270 128 320 126 360 130 L360 160 L0 160 Z" fill="#2a1a2e" stroke="#120818" stroke-width="2"/>
+  <path d="M104 134 V116 Q104 104 116 104 Q128 104 128 116 V134 Z" fill="#7c7488" stroke="#120818" stroke-width="2"/>
+  <path d="M110 118 H122 M116 112 V126" stroke="#4b4456" stroke-width="2.5"/>
+  <path d="M232 134 V122 Q232 114 240 114 Q248 114 248 122 V134 Z" fill="#6c6578" stroke="#120818" stroke-width="2"/>
+  <!-- ghost -->
+  <path d="M178 104 C176 82 204 80 204 102 L204 122 L199 117 L194 123 L189 117 L184 123 L178 118 Z" fill="#f4f4ff" stroke="#120818" stroke-width="2" stroke-linejoin="round"/>
+  <ellipse cx="186" cy="98" rx="2.4" ry="3.6" fill="#120818"/>
+  <ellipse cx="195" cy="98" rx="2.4" ry="3.6" fill="#120818"/>
+  <ellipse cx="190.5" cy="107" rx="3" ry="2.4" fill="#120818"/>
+  <!-- carved pumpkins -->
+  <g stroke="#120818" stroke-width="2" stroke-linejoin="round">
+    <path d="M62 128 C48 128 48 150 62 150 H84 C98 150 98 128 84 128 Z" fill="#ff8a1f"/>
+    <path d="M70 128 C66 132 66 146 70 150 M76 128 C80 132 80 146 76 150" fill="none" stroke="#c75f00" stroke-width="1.6"/>
+    <path d="M73 128 L74 120 L78 119" fill="none" stroke="#3f6b35" stroke-width="3"/>
+    <path d="M60 134 L65 138 L58 139 Z M86 134 L81 138 L88 139 Z" fill="url(#glow)"/>
+    <path d="M58 143 L62 146 L66 143 L70 147 L74 143 L78 147 L82 143 L86 146 L88 143 Q73 152 58 143 Z" fill="url(#glow)"/>
+    <path d="M292 132 C282 132 282 148 292 148 H306 C316 148 316 132 306 132 Z" fill="#ff8a1f"/>
+    <path d="M298 132 L299 126 L302 125" fill="none" stroke="#3f6b35" stroke-width="2.5"/>
+    <path d="M291 137 L295 140 L290 141 Z M307 137 L303 140 L308 141 Z" fill="url(#glow)"/>
+    <path d="M291 143 L295 146 L299 143 L303 146 L307 143 Q299 150 291 143 Z" fill="url(#glow)"/>
+  </g>
+  <!-- falling leaves -->
+  <g stroke="#120818" stroke-width="1">
+    <path d="M140 80 q6 -6 12 0 q-6 6 -12 0 z" fill="#e0483a" transform="rotate(20 146 80)"/>
+    <path d="M330 110 q6 -6 12 0 q-6 6 -12 0 z" fill="#ffb300" transform="rotate(-30 336 110)"/>
+    <path d="M226 70 q5 -5 10 0 q-5 5 -10 0 z" fill="#ff8a1f" transform="rotate(50 231 70)"/>
+    <path d="M24 120 q5 -5 10 0 q-5 5 -10 0 z" fill="#c75f00"/>
+  </g>
+  <!-- spider on a thread -->
+  <path d="M20 0 V30" stroke="#d8cfe6" stroke-width="1"/>
+  <circle cx="20" cy="33" r="4" fill="#120818"/>
+  <path d="M16 31 l-5 -3 M16 34 l-6 0 M16 36 l-5 3 M24 31 l5 -3 M24 34 l6 0 M24 36 l5 3" stroke="#120818" stroke-width="1.2"/>
+</svg>

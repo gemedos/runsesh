@@ -572,7 +572,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .mm-dot .avatar-badge { border-color: var(--sticker-ink); }
 .mm-dot--me { z-index: 5; }
-.mm-dot.is-focused { z-index: 6; box-shadow: 0 0 0 3px var(--orange); transform: translate(-50%, -50%) scale(1.08); }
+/*.mm-dot.is-focused { z-index: 6; box-shadow: 0 0 0 3px var(--orange); transform: translate(-50%, -50%) scale(1.08); }*/
 
 /* Rankings */
 .ranking { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -868,3 +868,43 @@ input:disabled { opacity: 0.6; }
 .pfp-upload:active { transform: scale(0.92); }
 .pfp-upload:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
 .pfp-upload-icon { width: 20px; height: 20px; }
+
+/* =========================================================================
+   Competition page + themes (circus default, one per season)
+   ========================================================================= */
+
+.hub-actions { display: flex; justify-content: center; }
+
+/* Label colour and card accent per theme. */
+.comp-theme--spring { border-color: #f5a8c8; }
+.comp-theme--spring .circus-label { background: #ff6b9d; }
+.comp-theme--summer { border-color: #6cc8ee; }
+.comp-theme--summer .circus-label { background: #19a7d6; }
+.comp-theme--fall { border-color: #6a3a7a; box-shadow: 0 0 24px rgba(255, 138, 31, 0.18); }
+.comp-theme--fall .circus-label { background: #ff8a1f; letter-spacing: 0.1em; }
+.comp-theme--winter { border-color: #a8d4f5; }
+.comp-theme--winter .circus-label { background: #5aa9e6; }
+
+/* Theme picker */
+.theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.theme-option {
+  position: relative;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 6px 6px 10px;
+  border-radius: var(--r-tile);
+  border: 3px solid transparent;
+  background: var(--tile);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.12s ease, border-color 0.15s ease;
+}
+.theme-option:active { transform: scale(0.96); }
+.theme-option--selected { border-color: var(--orange); }
+.theme-thumb { display: block; width: 100%; height: auto; border-radius: 14px; filter: var(--art-filter); }
+.theme-name { padding: 0 6px; font-weight: 600; font-size: var(--fs-small); }
+@media (min-width: 600px) { .theme-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) {
+  .page-comp-hub { max-width: 760px; margin: 0 auto; }
+  .theme-grid { grid-template-columns: repeat(5, 1fr); }
+}

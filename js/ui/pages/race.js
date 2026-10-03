@@ -1,14 +1,12 @@
 // Page 1: Race.
 // Layout (see docs/design.md): party row → stage (night world + hero number + minimap)
-// → rankings → competition.
+// → rankings. The competition lives on its own tab (pages/competitionHub.js).
 
 import { buildAvatarSvg } from '../../avatar/avatar.js';
-import { loadStandings } from '../../data/competitionData.js';
 import { rankDay } from '../../rules/ranking.js';
-import { getActiveCompetition, getPartyMembers } from '../../state/store.js';
+import { getPartyMembers } from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
 import { todayISO } from '../../util/date.js';
-import { circusHeader, competitionMeta, standingsList } from '../competitionBlock.js';
 import { avatarBadge, formatSteps, rankBadge, rankedAvatar } from '../components.js';
 import { h, onMount, s } from '../dom.js';
 import { iosInstallHint } from '../installHint.js';
@@ -34,17 +32,11 @@ export async function renderRace({ state, steps }) {
   const stepsById = Object.fromEntries(members.map((m, i) => [m.id, todaySteps[i]]));
   const ranking = rankDay(stepsById, members.map((m) => m.id));
 
-  const competition = getActiveCompetition(state);
-  const standings = competition ? await loadStandings(competition, members, steps, today) : null;
-
   return h('div', { class: 'page page-race' },
     iosInstallHint(),
     partyBar(state, members),
     stage(members, ranking, stepsById[state.meId] || 0, state.meId),
-    h('div', { class: 'race-columns' },
-      rankingsSection(members, ranking),
-      competitionCard(competition, standings, members, today),
-    ),
+    rankingsSection(members, ranking),
   );
 }
 
@@ -285,7 +277,7 @@ function countUp(el, target) {
 }
 
 // ---------------------------------------------------------------------------
-// Rankings and competition
+// Rankings
 // ---------------------------------------------------------------------------
 
 function rankingsSection(members, ranking) {
@@ -312,21 +304,5 @@ function rankingsSection(members, ranking) {
         );
       }),
     ),
-  );
-}
-
-function competitionCard(competition, standings, members, today) {
-  if (!competition) {
-    return h('section', { class: 'card card--circus' },
-      circusHeader(),
-      h('p', { class: 'empty', text: STRINGS.competition.none }),
-      h('a', { class: 'btn btn-primary', attrs: { href: '#/profile/competition' }, text: STRINGS.competition.create }),
-    );
-  }
-  return h('section', { class: 'card card--circus' },
-    circusHeader(),
-    competitionMeta(competition, today),
-    standingsList(competition, standings, members),
-    h('p', { class: 'hint', text: STRINGS.competition.mockRulesHint }),
   );
 }
