@@ -572,7 +572,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .mm-dot .avatar-badge { border-color: var(--sticker-ink); }
 .mm-dot--me { z-index: 5; }
-.mm-dot.is-focused { z-index: 6; box-shadow: 0 0 0 3px var(--orange); transform: translate(-50%, -50%) scale(1.08); }
+/*.mm-dot.is-focused { z-index: 6; box-shadow: 0 0 0 3px var(--orange); transform: translate(-50%, -50%) scale(1.08); }*/
 
 /* Rankings */
 .ranking { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
