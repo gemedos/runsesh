@@ -1,7 +1,7 @@
 // Service worker: caches ONLY the static app shell. No user data, no API responses.
 // Bump CACHE_VERSION whenever any file in APP_SHELL changes.
 
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v9';
 const CACHE_NAME = `runsesh-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -37,6 +37,7 @@ const APP_SHELL = [
   './js/data/competitionData.js',
   './js/data/mockData.js',
   './js/data/profileRepo.js',
+  './js/data/shortcutKeyRepo.js',
   './js/data/stepsProvider.js',
   './js/data/supabaseStepsProvider.js',
   './js/platform.js',
@@ -58,6 +59,7 @@ const APP_SHELL = [
   './js/ui/pages/competition.js',
   './js/ui/pages/competitionHub.js',
   './js/ui/pages/health.js',
+  './js/ui/pages/iphone.js',
   './js/ui/pages/placeholders.js',
   './js/ui/pages/profile.js',
   './js/ui/pages/race.js',

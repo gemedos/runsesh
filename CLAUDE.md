@@ -13,6 +13,13 @@ This file defines non-negotiable rules for building this project. Read it fully 
 ## 2. Hard "never" rules
 
 1. Never write custom cryptography, password hashing, token generation, or session logic. Use the provider's SDK.
+   **Exception to rule 2.1: Apple Shortcut keys (approved by me on 2026-10-04).** Our own code may generate exactly one kind of credential: a per-user *Shortcut key*, so an Apple Shortcut can send that user's daily step total. Conditions:
+   1. Created only by the `shortcut-key` Edge Function from 32 bytes of the platform's secure random generator (`crypto.getRandomValues`), encoded as `rs_` + base64url. No other custom tokens, sessions or password handling.
+   2. Only the SHA-256 hash is stored (`public.shortcut_keys`). The key is shown to the user once, and is never stored in plain text, logged, cached, or put in a URL; it travels only in the `Authorization` header.
+   3. At most one active key per user. Creating a new key replaces the old one. The user can revoke it at any time, and it is deleted with the account.
+   4. A key can only call the `ingest-steps` Edge Function, which writes **the key owner's own** `daily_steps` row with `source = 'shortcut'`, only for the allowed days. It cannot read data, log in, or change anything else.
+   5. Each key is rate limited (at most 30 requests per hour).
+   6. Any change to this mechanism needs my explicit approval.
 2. Never store, log, cache, or display a user's password anywhere other than the provider's login request.
 3. Never put secrets in the repo or bundle: no service-role keys, admin keys, private API keys, signing secrets, or database passwords. Only keys the provider explicitly designates as **public/publishable** may appear in client code. Variables prefixed `VITE_`, `NEXT_PUBLIC_`, etc. are **public** once bundled.
 4. Never commit `.env*`, `*.pem`, `*.key`, credentials files, or service-account JSON. Keep them in `.gitignore` from the first commit.

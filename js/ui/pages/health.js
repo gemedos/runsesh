@@ -24,7 +24,7 @@ function sourceCard(title, text, action, onAction, tag) {
   );
 }
 
-export function renderHealth({ state, toast }) {
+export function renderHealth({ state, toast, navigate }) {
   const userId = state.auth.userId;
   const today = todayISO();
 
@@ -88,7 +88,7 @@ export function renderHealth({ state, toast }) {
       androidSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       androidSection.focus({ preventScroll: true });
     }),
-    sourceCard(T.shortcutTitle, T.shortcutText, T.shortcutAction, null, STRINGS.common.comingLater),
+    sourceCard(T.shortcutTitle, T.shortcutText, T.shortcutAction, () => navigate('profile/iphone')),
     androidSection,
     h('p', { class: 'hint' }, T.privacy, ' ', h('a', { attrs: { href: 'privacy.html' }, text: T.privacyLink })),
   );

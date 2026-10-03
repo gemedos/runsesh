@@ -6,6 +6,7 @@ import { buildAvatarSvg } from '../../avatar/avatar.js';
 import { STRINGS } from '../../strings.js';
 import { avatarBadge } from '../components.js';
 import { h, s } from '../dom.js';
+import { isIos } from '../installHint.js';
 import { getTheme, setTheme, THEMES } from '../theme.js';
 
 const T = STRINGS.profile;
@@ -85,6 +86,7 @@ export function renderProfile({ state, toast }) {
         navItem(T.login, 'profile/login'),
         navItem(T.account, 'profile/account'),
         navItem(T.health, 'profile/health'),
+        isIos() ? navItem(STRINGS.iphone.title, 'profile/iphone') : null,
       ], true),
     ),
   );

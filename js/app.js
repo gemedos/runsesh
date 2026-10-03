@@ -16,6 +16,7 @@ import { renderAvatarEditor } from './ui/pages/avatarEditor.js';
 import { renderCompetition } from './ui/pages/competition.js';
 import { renderCompetitionHub } from './ui/pages/competitionHub.js';
 import { renderHealth } from './ui/pages/health.js';
+import { renderIphone } from './ui/pages/iphone.js';
 import { renderCreateParty, renderMembers, renderRules } from './ui/pages/placeholders.js';
 import { renderProfile } from './ui/pages/profile.js';
 import { renderRace } from './ui/pages/race.js';
@@ -43,6 +44,7 @@ const ROUTES = Object.freeze({
   'profile/login': { tab: 'profile', render: renderLogin },
   'profile/account': { tab: 'profile', render: renderAccount },
   'profile/health': { tab: 'profile', render: renderHealth },
+  'profile/iphone': { tab: 'profile', render: renderIphone },
 });
 const DEFAULT_ROUTE = 'race';
 

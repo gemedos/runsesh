@@ -111,6 +111,46 @@ Console shows nothing from the URL or the session.
    forwards to `auth-callback.html`, which shows the invalid message.
 7. Restore the `token_hash` templates afterwards.
 
+## 6c. Apple Shortcut keys
+Deploy both Edge Functions first (`docs/edge-functions.md`). Use the console session from
+"Setup" (User A signed in as `A`). `FN` is the functions base URL.
+```js
+const FN = `${URL}/functions/v1`;
+const call = (path, opts = {}) => fetch(`${FN}/${path}`, opts).then(async (r) => [r.status, await r.json().catch(() => null)]);
+```
+1. **Create, shown once:** in the app (Profile → runsesh on iPhone → Create Shortcut key) create a
+   key and copy it into `KEY_A`. Leave the screen and come back: only "…last 4 characters" is shown.
+   In the dashboard Table Editor, `shortcut_keys` has one row for A with a 64-character
+   `key_hash` and **no** readable key.
+   ```js
+   const KEY_A = '<paste>';
+   ```
+2. **Ingest works for the owner only:**
+   ```js
+   await call('ingest-steps', { method: 'POST', headers: { Authorization: `Bearer ${KEY_A}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ day: today, steps: 4321 }) });
+   // expect [200, {ok: true}]; A's daily_steps for today = 4321, source 'shortcut'
+   await call('ingest-steps', { method: 'POST', headers: { Authorization: `Bearer ${KEY_A}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: B_ID, day: today, steps: 1 }) });
+   // expect [200, …] but the row written is A's (user_id in the body is ignored); B unchanged
+   ```
+3. **Invalid input → 400:** `steps: -1`, `steps: 100001`, `steps: 12.5`, `steps: "9000"`,
+   `day: "2026-02-30"`, `day: shift(-4)` (outside the window), a body that is not JSON.
+4. **Wrong method → 405:** `await call('ingest-steps')` (GET).
+5. **Unknown / malformed / revoked key → 401:** `Bearer rs_` + 43 random characters; `Bearer abc`;
+   no header; then revoke the key in the app and repeat step 2 → 401.
+6. **Rate limit:** with a fresh key, send 31 valid requests within an hour → the 31st returns 429.
+7. **Replace:** create a new key → the old key returns 401, the new one works.
+8. **No client access:**
+   ```js
+   await A.from('shortcut_keys').select('*');        // expect error 42501 (permission denied)
+   await A.rpc('ingest_shortcut_steps', { p_key_hash: '0'.repeat(64), p_day: today, p_steps: 1 }); // expect error 42501
+   await client().from('shortcut_keys').select('*'); // anon: expect error 42501
+   ```
+9. **shortcut-key requires a session:** `await call('shortcut-key')` without a session → 401;
+   calling it from another web origin is blocked by CORS.
+10. **Nothing logged:** dashboard → Edge Functions → each function → Logs: no keys, step values
+    or emails appear (only status lines).
+11. **Account deletion** (when built): the user's `shortcut_keys` row is gone.
+
 ## 7. Logout clears everything
 1. Log in, browse every screen, save steps and an avatar.
 2. Log out (Profile → Login / Log out, or Account → Log out).
