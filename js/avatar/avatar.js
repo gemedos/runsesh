@@ -25,11 +25,11 @@ const ALLOWED_KEYS = ['v', 'skin', ...Object.keys(AVATAR_FIELDS)];
 
 export const DEFAULT_AVATAR = Object.freeze({
   v: 1,
-  skin: '#f1c27d',
-  hair: 'h_short',
+  skin: '#ff8c1a',
+  hair: 'h_none',
   hairColor: 'hc_brown',
-  top: 't_tee',
-  bottom: 'b_shorts',
+  top: 't_jersey',
+  bottom: 'b_joggers',
   shoes: 's_runner',
   acc: 'a_none',
 });
@@ -67,8 +67,9 @@ export function sanitizeAvatar(input) {
   return validateAvatar(input) || DEFAULT_AVATAR;
 }
 
-export const FULL_VIEWBOX = '20 0 160 290';
-export const HEAD_VIEWBOX = '46 8 108 108';
+export const FULL_VIEWBOX = '26 4 158 250';
+/** Profile-picture close-up: big head in the upper circle, shoulders and collar at the bottom. */
+export const HEAD_VIEWBOX = '70 12 72 72';
 
 /**
  * Builds an <svg> for an avatar.
@@ -90,7 +91,9 @@ export function buildAvatarSvg(avatar, opts = {}) {
   const hair = HAIR[a.hair];
   const layers = [
     hair.back,
+    opts.crop ? [] : BODY.shadow,
     BODY.legs,
+    BODY.hips,
     BOTTOMS[a.bottom].parts,
     golden && golden.layer === 'shoes' ? golden.parts : (a.shoes === 's_none' ? BODY.feet : SHOES[a.shoes].parts),
     BODY.arms,
@@ -99,7 +102,6 @@ export function buildAvatarSvg(avatar, opts = {}) {
     TOPS[a.top].parts,
     golden && golden.layer === 'top' ? golden.parts : [],
     BODY.head,
-    BODY.face,
     hair.front,
     ACCESSORIES[a.acc].parts,
     golden && golden.layer === 'acc' ? golden.parts : [],

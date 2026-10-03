@@ -1,4 +1,4 @@
-import { AVATAR_FIELDS, AVATAR_MAX_JSON_LENGTH, buildAvatarSvg, DEFAULT_AVATAR, validateAvatar } from '../js/avatar/avatar.js';
+import { AVATAR_FIELDS, AVATAR_MAX_JSON_LENGTH, buildAvatarSvg, DEFAULT_AVATAR, HEAD_VIEWBOX, validateAvatar } from '../js/avatar/avatar.js';
 import { STRINGS } from '../js/strings.js';
 import { eq, ok, test } from './harness.js';
 
@@ -70,7 +70,7 @@ test('buildAvatarSvg falls back to the default for invalid input', () => {
 });
 
 test('head crop uses the close-up viewBox', () => {
-  eq(buildAvatarSvg(good, { crop: true }).getAttribute('viewBox'), '46 8 108 108');
+  eq(buildAvatarSvg(good, { crop: true }).getAttribute('viewBox'), HEAD_VIEWBOX);
 });
 
 test('golden preview ignores unknown ids', () => {

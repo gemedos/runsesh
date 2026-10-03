@@ -14,7 +14,7 @@ If you add or remove a part ID, update this file, `js/strings.js` (its label) an
 ## Example
 
 ```json
-{"v":1,"skin":"#f1c27d","hair":"h_short","hairColor":"hc_brown","top":"t_tee","bottom":"b_shorts","shoes":"s_runner","acc":"a_none"}
+{"v":1,"skin":"#ff8c1a","hair":"h_none","hairColor":"hc_brown","top":"t_jersey","bottom":"b_joggers","shoes":"s_runner","acc":"a_none"}
 ```
 
 This is also the default avatar.

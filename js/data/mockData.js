@@ -31,9 +31,8 @@ export const MOCK_PARTY = Object.freeze({
   memberIds: MOCK_MEMBERS.map((m) => m.id),
 });
 
-/** MOCK: party rules shown on the Party rules placeholder and used for the daily goal. */
+/** MOCK: party rules shown on the Party rules placeholder. */
 export const MOCK_PARTY_RULES = Object.freeze({
-  dailyGoal: 10000,
   dayResetsAt: 'Midnight (each member\'s local time)',
   stepScoring: 'plain', // 'plain' or 'elevation_bonus' (see STEP_SCORING in rules/ranking.js)
   inviteOnly: true,

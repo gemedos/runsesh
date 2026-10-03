@@ -20,3 +20,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Design references (screenshots of another app with real names) - never commit
+inspo/

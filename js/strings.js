@@ -21,6 +21,11 @@ export const STRINGS = Object.freeze({
     notConnectedDefault: 'This screen shows mock data. Nothing is saved to an account.',
     comingLater: 'Coming later',
     rank: (n) => `Rank ${n}`,
+    ordinal: (n) => {
+      const mod100 = n % 100;
+      const suffix = mod100 >= 11 && mod100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+      return `${n}${suffix}`;
+    },
     steps: (n) => `${n} steps`,
   },
 
@@ -36,14 +41,17 @@ export const STRINGS = Object.freeze({
   race: {
     createParty: 'Create a party',
     partyMembers: (party) => `${party} members`,
-    trackTitle: "Today's race",
-    trackLabel: 'Race track, scroll sideways',
-    trackHint: 'Swipe the track. Tap a runner for details.',
+    trackLabel: "Today's race track. Swipe sideways to travel along it.",
     trackStart: 'Start',
     trackTick: (k) => `${k}k`,
-    goal: (n) => `Goal ${n}`,
     runnerLabel: (name, steps) => `${name}: ${steps} steps today`,
-    todayTitle: 'Today',
+    minimapLabel: 'Overview of all runners. Tap a runner to jump to them.',
+    you: 'You',
+    todayTitle: 'Rankings',
+    yourSteps: 'Your steps today',
+    leader: 'Leading today',
+    behind: (steps, name) => `${steps} behind ${name}`,
+    tied: (name) => `Tied with ${name}`,
   },
 
   competition: {
@@ -97,6 +105,10 @@ export const STRINGS = Object.freeze({
     customize: 'Customize your avatar',
     yourAvatar: 'Your avatar',
     tapToCustomize: 'Tap to customize',
+    customizeButton: 'Customize avatar',
+    uploadPhoto: 'Use your own photo as profile picture',
+    photoLater: 'Custom profile photos are coming in a later phase.',
+    darkTheme: 'Dark theme',
     groupParty: 'PARTY',
     groupSettings: 'SETTINGS',
     partySettings: 'Party settings',
@@ -112,7 +124,10 @@ export const STRINGS = Object.freeze({
     title: 'Your avatar',
     preview: 'Avatar preview',
     skin: 'Skin / body color',
+    skinPicker: 'Pick any color',
+    swatch: (hex) => `Color ${hex}`,
     tabs: {
+      skin: 'Body color',
       hair: 'Hair',
       hairColor: 'Hair color',
       top: 'Tops',
@@ -134,11 +149,11 @@ export const STRINGS = Object.freeze({
     h_bob: 'Bob', h_ponytail: 'Ponytail', h_bun: 'Bun', h_curly: 'Curly', h_mohawk: 'Mohawk',
     hc_black: 'Black', hc_brown: 'Brown', hc_auburn: 'Auburn', hc_blonde: 'Blonde',
     hc_grey: 'Grey', hc_blue: 'Blue', hc_pink: 'Pink', hc_green: 'Green',
-    t_tee: 'T-shirt', t_tank: 'Tank top', t_jersey: 'Striped jersey', t_hoodie: 'Hoodie',
+    t_tee: 'T-shirt', t_tank: 'Tank top', t_jersey: 'Knit sweater', t_hoodie: 'Hoodie',
     t_jacket: 'Jacket', t_singlet: 'Race singlet', t_tracksuit: 'Tracksuit',
     b_shorts: 'Shorts', b_runshorts: 'Running shorts', b_leggings: 'Leggings',
     b_joggers: 'Joggers', b_skirt: 'Skirt',
-    s_none: 'Barefoot', s_runner: 'Red runners', s_white: 'White trainers',
+    s_none: 'Barefoot', s_runner: 'Green runners', s_white: 'White trainers',
     s_blue: 'Blue runners', s_pink: 'Pink runners',
     a_none: 'None', a_cap: 'Cap', a_headband: 'Headband', a_sunglasses: 'Sunglasses',
     a_glasses: 'Glasses', a_headphones: 'Headphones', a_scarf: 'Scarf', a_medal: 'Medal',
@@ -168,8 +183,6 @@ export const STRINGS = Object.freeze({
   rules: {
     title: 'Party rules',
     cardTitle: 'Rules',
-    dailyGoal: 'Daily goal',
-    dailyGoalValue: (n) => `${n} steps`,
     dayResets: 'Day resets at',
     joining: 'Joining',
     inviteOnly: 'Invite only',

@@ -9,6 +9,7 @@ import { renderCompetition } from './ui/pages/competition.js';
 import { renderAccount, renderCreateParty, renderHealth, renderLogin, renderMembers, renderRules } from './ui/pages/placeholders.js';
 import { renderProfile } from './ui/pages/profile.js';
 import { renderRace } from './ui/pages/race.js';
+import { applyTheme } from './ui/theme.js';
 
 const SPLASH_MS = 1500;
 const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -33,6 +34,7 @@ const view = document.getElementById('view');
 const bannerRoot = document.getElementById('banner-root');
 const steps = createStepsProvider();
 let renderSeq = 0;
+let lastRendered = null;
 
 function isRoute(name) {
   return Object.prototype.hasOwnProperty.call(ROUTES, name);
@@ -84,6 +86,9 @@ async function render({ scrollTop = false } = {}) {
   }
   if (seq !== renderSeq) return; // a newer render started meanwhile
 
+  // Animate in only on screen changes, not on in-place updates of the same screen.
+  if (name !== lastRendered) node.classList.add('is-entering');
+  lastRendered = name;
   view.replaceChildren(node);
   runMountHooks();
   if (scrollTop) window.scrollTo(0, 0);
@@ -100,8 +105,11 @@ subscribe(() => {
 function applyShellStrings() {
   document.querySelector('.topbar-logo').alt = STRINGS.app.logoAlt;
   document.querySelector('.tabbar').setAttribute('aria-label', STRINGS.app.navLabel);
-  document.querySelector('.tab[data-tab="race"]').setAttribute('aria-label', STRINGS.app.tabRace);
-  document.querySelector('.tab[data-tab="profile"]').setAttribute('aria-label', STRINGS.app.tabProfile);
+  for (const [tab, label] of [['race', STRINGS.app.tabRace], ['profile', STRINGS.app.tabProfile]]) {
+    const el = document.querySelector(`.tab[data-tab="${tab}"]`);
+    el.setAttribute('aria-label', label);
+    el.querySelector('.tab-label').textContent = label;
+  }
 }
 
 // --- Splash -----------------------------------------------------------------
@@ -158,6 +166,7 @@ function registerServiceWorker() {
 
 // --- Boot -------------------------------------------------------------------
 
+applyTheme();
 applyShellStrings();
 render();
 setTimeout(hideSplash, SPLASH_MS);

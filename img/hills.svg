@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" preserveAspectRatio="none">
+  <!-- Two hill ranges, semi-transparent so they read as night hills on a dark sky and soft blue hills on a day sky. -->
+  <path d="M0 120 C60 96 110 70 170 88 C220 102 250 60 320 52 C390 44 420 96 480 100 C540 104 580 64 650 70 C720 76 760 108 800 120 L800 200 L0 200 Z" fill="#0b2340" fill-opacity="0.55"/>
+  <path d="M0 150 C80 124 150 128 220 140 C290 152 330 118 410 116 C490 114 540 146 620 144 C700 142 750 128 800 150 L800 200 L0 200 Z" fill="#0d2a47" fill-opacity="0.8"/>
+</svg>

@@ -1,0 +1,9 @@
+/* Dev-only page: every avatar option side by side. */
+body { margin: 0; padding: 12px; background: #1b1b21; color: #eee; font-family: system-ui, sans-serif; }
+section { margin-bottom: 12px; }
+h2 { font-size: 14px; margin: 4px 0; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.cell { width: 90px; background: #24242c; border-radius: 10px; padding: 4px; text-align: center; font-size: 10px; }
+.cell svg { width: 100%; height: 120px; display: block; }
+.cell.head svg { height: 80px; }
+.big { display: flex; gap: 12px; } .big svg { width: 300px; height: 500px; background: #24242c; border-radius: 12px; }

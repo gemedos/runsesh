@@ -51,7 +51,6 @@ export function renderRules({ state, toast }) {
   const T = STRINGS.rules;
   const rules = state.partyRules;
   const rows = [
-    [T.dailyGoal, T.dailyGoalValue(rules.dailyGoal.toLocaleString())],
     [T.dayResets, rules.dayResetsAt],
     [T.joining, rules.inviteOnly ? T.inviteOnly : T.open],
   ];
