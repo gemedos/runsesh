@@ -37,7 +37,7 @@ try {
     } catch {
       $res.StatusCode = 500
     } finally {
-      $res.Close()
+      try { $res.Close() } catch { }  # the client may already have disconnected
     }
   }
 } finally {

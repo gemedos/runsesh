@@ -1,20 +1,15 @@
 // ============================================================================
-// MOCK DATA (Phase 1 only)
-// Everything in this file is fake: invented people, a fake example.com email
-// and made-up step profiles. It is replaced by the backend in Phase 2+.
+// MOCK DATA
+// Everything in this file is fake: invented people and made-up step profiles.
+// Since Phase 2 the signed-in user ("me") is real (account, profile, own steps);
+// the other party members below stay mock until parties arrive in Phase 3.
 // ============================================================================
 
 import { addDays } from '../util/date.js';
 
 export const MOCK_ME_ID = 'me';
 
-/** MOCK: the signed-in account (no real person, no password). */
-export const MOCK_ACCOUNT = Object.freeze({
-  name: 'Sam Runner',
-  email: 'sam.runner@example.com',
-});
-
-/** MOCK: party members. "me" takes its avatar from local state instead. */
+/** MOCK: party members. "me" uses the real profile's avatar and real steps. */
 export const MOCK_MEMBERS = Object.freeze([
   { id: MOCK_ME_ID, name: 'You' },
   { id: 'mock-alex', name: 'Alex', avatar: { v: 1, skin: '#c68642', hair: 'h_curly', hairColor: 'hc_black', top: 't_jersey', bottom: 'b_shorts', shoes: 's_white', acc: 'a_headband' } },

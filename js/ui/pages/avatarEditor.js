@@ -115,12 +115,15 @@ export function renderAvatarEditor({ state, navigate, toast }) {
     text: T.save,
     attrs: { type: 'button' },
     on: {
-      click: () => {
+      click: async () => {
+        // Validated here, then by the database (CHECK constraint). On failure the
+        // previous avatar stays and the user sees a generic message.
         const clean = validateAvatar(draft);
-        if (!clean || !saveAvatar(clean)) {
-          toast(T.saveFailed);
-          return;
-        }
+        if (!clean) { toast(T.saveFailed); return; }
+        save.disabled = true;
+        const ok = await saveAvatar(clean);
+        save.disabled = false;
+        if (!ok) { toast(T.saveFailed); return; }
         toast(T.saved);
         navigate('profile');
       },

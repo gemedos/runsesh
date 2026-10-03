@@ -285,6 +285,7 @@ function rankingsSection(members, ranking) {
   const nameOf = (m) => (m.isMe ? T.you : m.name);
   return h('section', { class: 'section' },
     h('h2', { class: 'section-title', text: T.todayTitle }),
+    h('p', { class: 'hint', text: T.mockOthers }), // other members are MOCK until Phase 3
     h('ol', { class: 'ranking' },
       ranking.map((row, i) => {
         const m = byId.get(row.id);

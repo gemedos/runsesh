@@ -1,12 +1,13 @@
-// Local app state. Rendering code only uses getState / subscribe / the action helpers,
-// so a backend-backed store can replace this module later without touching the views.
+// App state. Rendering code only uses getState / subscribe / the action helpers.
 //
-// Persisted in localStorage (Phase 1 only, nothing sensitive): the avatar JSON,
-// locally created mock competitions and the party's step-scoring setting.
-// Everything read back is validated again.
+// From Supabase (Phase 2): the signed-in user (id, email) and their profile
+// (display name, avatar, timezone). These live in memory only.
+// Still local mock data until later phases (localStorage, nothing sensitive, validated on
+// read, wiped on sign-out): party, members, competitions, competition themes, step scoring.
 
 import { DEFAULT_AVATAR, validateAvatar } from '../avatar/avatar.js';
-import { MOCK_ACCOUNT, MOCK_ME_ID, MOCK_MEMBERS, MOCK_PARTY, MOCK_PARTY_RULES, mockDefaultCompetition } from '../data/mockData.js';
+import { MOCK_ME_ID, MOCK_MEMBERS, MOCK_PARTY, MOCK_PARTY_RULES, mockDefaultCompetition } from '../data/mockData.js';
+import { updateOwnProfile } from '../data/profileRepo.js';
 import { isStepScoring } from '../rules/ranking.js';
 import { STRINGS } from '../strings.js';
 import { todayISO } from '../util/date.js';
@@ -23,12 +24,13 @@ function createInitialState(saved) {
   const competitions = [mockCompetition, ...saved.competitions];
   const activeId = competitions.some((c) => c.id === saved.activeCompetitionId) ? saved.activeCompetitionId : mockCompetition.id;
   return Object.freeze({
-    meId: MOCK_ME_ID,
-    account: MOCK_ACCOUNT, // MOCK
+    meId: MOCK_ME_ID, // "me" inside the mock party; real data uses auth.userId
+    auth: null, // { userId, email } while signed in
+    profile: null, // { id, displayName, avatar, timezone } from public.profiles
     party: MOCK_PARTY, // MOCK
     members: MOCK_MEMBERS, // MOCK
     partyRules: Object.freeze({ ...MOCK_PARTY_RULES, stepScoring: saved.stepScoring || MOCK_PARTY_RULES.stepScoring }), // MOCK
-    avatar: saved.avatar,
+    avatar: DEFAULT_AVATAR, // replaced by the profile's avatar after sign-in
     competitions: Object.freeze(competitions),
     activeCompetitionId: activeId,
     // Competition id -> visual theme. Only non-default choices are stored.
@@ -57,12 +59,54 @@ function setState(patch) {
 // Actions
 // ---------------------------------------------------------------------------
 
-/** @returns {boolean} false if the avatar was rejected */
-export function saveAvatar(input) {
+/** Called by the auth module after sign-in / session restore. */
+export function setSignedIn(user, profile) {
+  setState({
+    auth: Object.freeze({ userId: user.id, email: user.email || '' }),
+    profile,
+    avatar: (profile && profile.avatar) || DEFAULT_AVATAR,
+  });
+}
+
+export function setProfile(profile) {
+  setState({ profile, avatar: (profile && profile.avatar) || DEFAULT_AVATAR });
+}
+
+/** In-memory reset after sign-out (local storage is wiped separately). */
+export function resetState() {
+  state = createInitialState(emptySaved());
+  for (const listener of listeners) listener(state);
+}
+
+/**
+ * Validates in the browser, then saves to the user's own profile row.
+ * If the database rejects it, the previous avatar stays.
+ * @returns {Promise<boolean>}
+ */
+export async function saveAvatar(input) {
   const avatar = validateAvatar(input);
-  if (!avatar) return false;
-  setState({ avatar });
-  return true;
+  if (!avatar || !state.auth) return false;
+  try {
+    const profile = await updateOwnProfile(state.auth.userId, { avatar });
+    if (!profile) return false;
+    setProfile(profile);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** @returns {Promise<boolean>} */
+export async function saveDisplayName(name) {
+  if (!state.auth) return false;
+  try {
+    const profile = await updateOwnProfile(state.auth.userId, { displayName: name });
+    if (!profile) return false;
+    setProfile(profile);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** @returns {{ ok: boolean, errors?: object }} */
@@ -130,7 +174,7 @@ export function getCompetitionTheme(competition, s = state) {
 // ---------------------------------------------------------------------------
 
 function loadPersisted() {
-  const fallback = { avatar: DEFAULT_AVATAR, competitions: [], activeCompetitionId: null, stepScoring: null, competitionThemes: {} };
+  const fallback = emptySaved();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw || raw.length > 20000) return fallback;
@@ -140,7 +184,6 @@ function loadPersisted() {
       ? data.competitions.slice(0, MAX_COMPETITIONS).map(validateStoredCompetition).filter(Boolean)
       : [];
     return {
-      avatar: validateAvatar(data.avatar) || DEFAULT_AVATAR,
       competitions,
       activeCompetitionId: typeof data.activeCompetitionId === 'string' ? data.activeCompetitionId : null,
       stepScoring: isStepScoring(data.stepScoring) ? data.stepScoring : null,
@@ -149,6 +192,10 @@ function loadPersisted() {
   } catch {
     return fallback;
   }
+}
+
+function emptySaved() {
+  return { competitions: [], activeCompetitionId: null, stepScoring: null, competitionThemes: {} };
 }
 
 /** Keeps only entries with a safe id and a whitelisted theme. */
@@ -164,7 +211,6 @@ function readThemes(raw) {
 function persist() {
   try {
     const data = {
-      avatar: state.avatar,
       competitions: state.competitions.filter((c) => !c.mock),
       activeCompetitionId: state.activeCompetitionId,
       stepScoring: state.partyRules.stepScoring,
