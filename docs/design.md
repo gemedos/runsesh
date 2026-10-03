@@ -241,3 +241,20 @@ overhang the bar. Step markers are teal notches with small labels above the bar.
 
 An orange camera badge sits on the profile picture. In Phase 1 it only explains that photos are
 coming later; there is no file input and no file is read. Upload, validation and storage arrive in Phase 3.
+
+## 10. Competition tab and themes (v2.2)
+
+Navigation is now Race · **Competition** · Profile (trophy icon in the middle). The Competition tab holds
+everything that used to sit under the Race rankings: themed header with the red COMPETITION label,
+name, dates, tags, standings and the mock-rules note, plus a "Competition settings" button.
+
+Competition settings (Profile → Competition) has a **theme picker**. Themes are stored per competition,
+validated against a fixed list (`COMPETITION_THEMES` in `js/state/competition.js`):
+
+| Theme | Art | Label colour |
+|---|---|---|
+| Classic circus (default) | `img/circus.svg`: striped big top, bunting, stars | red |
+| Spring | `img/comp-spring.svg`: blossom tree, petals, tulips, butterflies, pastel bunting | pink |
+| Summer | `img/comp-summer.svg`: sun, sea, beach, palm tree, umbrella, ball, gulls | turquoise |
+| Fall (spooky) | `img/comp-fall.svg`: purple night, big moon, bats, haunted tree, ghost, gravestones, jack-o'-lanterns, spider | orange |
+| Winter | `img/comp-winter.svg`: icicles, snowflakes, snowy pines, snowman, sled tracks | icy blue |

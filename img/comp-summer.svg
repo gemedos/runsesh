@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 160">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cc4ff"/><stop offset="1" stop-color="#fff1c1"/></linearGradient>
+  </defs>
+  <rect width="360" height="160" fill="url(#sky)"/>
+  <!-- sun with rays -->
+  <path d="M300 10 V2 M300 66 V58 M268 34 H260 M340 34 H332 M277 11 L272 6 M323 57 L328 62 M323 11 L328 6 M277 57 L272 62" stroke="#ffb300" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="300" cy="34" r="20" fill="#ffd23f" stroke="#3a2a20" stroke-width="2"/>
+  <!-- seagulls -->
+  <path d="M150 30 q6 -6 12 0 q6 -6 12 0 M196 44 q5 -5 10 0 q5 -5 10 0" fill="none" stroke="#3a2a20" stroke-width="2" stroke-linecap="round"/>
+  <!-- sea -->
+  <path d="M0 96 H360 V128 H0 Z" fill="#2fa3d6" stroke="#3a2a20" stroke-width="2"/>
+  <path d="M10 108 q8 -5 16 0 t16 0 M90 116 q8 -5 16 0 t16 0 M200 106 q8 -5 16 0 t16 0 M290 118 q8 -5 16 0 t16 0" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  <!-- sand -->
+  <path d="M0 126 C80 118 160 122 240 126 C290 124 330 120 360 122 L360 160 L0 160 Z" fill="#f7d98b" stroke="#3a2a20" stroke-width="2"/>
+  <g fill="#e4bf66"><circle cx="40" cy="146" r="1.5"/><circle cx="120" cy="140" r="1.5"/><circle cx="200" cy="150" r="1.5"/><circle cx="260" cy="142" r="1.5"/><circle cx="330" cy="150" r="1.5"/></g>
+  <!-- palm tree -->
+  <path d="M56 150 C58 120 62 92 74 70" stroke="#8a5a2b" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M56 150 C58 120 62 92 74 70" stroke="#3a2a20" stroke-width="1.5" stroke-dasharray="3 6" fill="none"/>
+  <g fill="#3fae5a" stroke="#3a2a20" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M74 70 C60 56 40 58 30 70 C44 66 58 66 74 72 Z"/>
+    <path d="M74 70 C80 52 100 46 114 52 C100 56 88 62 76 72 Z"/>
+    <path d="M74 70 C92 66 108 74 114 88 C102 80 88 76 74 73 Z"/>
+    <path d="M74 70 C62 76 54 90 56 102 C62 90 66 82 74 74 Z"/>
+    <path d="M74 70 C70 56 74 44 84 38 C80 50 78 60 76 70 Z"/>
+  </g>
+  <circle cx="72" cy="76" r="4" fill="#6b4a2a" stroke="#3a2a20" stroke-width="1.2"/>
+  <circle cx="79" cy="77" r="4" fill="#6b4a2a" stroke="#3a2a20" stroke-width="1.2"/>
+  <!-- beach umbrella and ball -->
+  <path d="M290 150 L300 96" stroke="#3a2a20" stroke-width="3" stroke-linecap="round"/>
+  <path d="M262 100 C270 80 316 74 336 92 Z" fill="#ffffff"/>
+  <path d="M262 100 C266 92 276 86 284 84 L290 98 Z M300 80 C310 80 322 84 328 88 L312 96 Z" fill="#e0483a"/>
+  <path d="M262 100 C270 80 316 74 336 92 Z" fill="none" stroke="#3a2a20" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="248" cy="142" r="9" fill="#ffffff" stroke="#3a2a20" stroke-width="1.8"/>
+  <path d="M240 140 Q248 134 256 140 M248 133 V151" fill="none" stroke="#2f80ed" stroke-width="2.5"/>
+</svg>

@@ -1,4 +1,4 @@
-import { validateCompetitionInput, validateStoredCompetition } from '../js/state/competition.js';
+import { isCompetitionTheme, validateCompetitionInput, validateStoredCompetition } from '../js/state/competition.js';
 import { eq, ok, test } from './harness.js';
 
 const base = { name: '', start: '2026-10-01', end: '', mode: 'days_won', golden: false };
@@ -27,4 +27,9 @@ test('names are trimmed and length-limited; markup stays plain text', () => {
 test('stored competitions need a safe id', () => {
   eq(validateStoredCompetition({ ...base, id: 'local-abc' }).id, 'local-abc');
   eq(validateStoredCompetition({ ...base, id: '../x' }), null);
+});
+
+test('competition themes: circus plus the four seasons, nothing else', () => {
+  eq(['circus', 'spring', 'summer', 'fall', 'winter'].map(isCompetitionTheme), [true, true, true, true, true]);
+  eq(['autumn', '', null, '__proto__', 'img/circus.svg'].map(isCompetitionTheme), [false, false, false, false, false]);
 });

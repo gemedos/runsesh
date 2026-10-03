@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 160">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd0ff"/><stop offset="1" stop-color="#eef8ff"/></linearGradient>
+  </defs>
+  <rect width="360" height="160" fill="url(#sky)"/>
+  <!-- icicle garland -->
+  <path d="M0 6 H360" stroke="#3a2a20" stroke-width="1.4"/>
+  <g fill="#dff3ff" stroke="#3a2a20" stroke-width="1">
+    <path d="M10 6 l4 14 l4 -14 z"/><path d="M40 6 l3 9 l3 -9 z"/><path d="M70 6 l4 16 l4 -16 z"/><path d="M110 6 l3 10 l3 -10 z"/>
+    <path d="M150 6 l4 14 l4 -14 z"/><path d="M200 6 l3 9 l3 -9 z"/><path d="M240 6 l4 16 l4 -16 z"/><path d="M290 6 l3 10 l3 -10 z"/><path d="M330 6 l4 14 l4 -14 z"/>
+  </g>
+  <!-- snowflakes -->
+  <g stroke="#ffffff" stroke-width="1.8" stroke-linecap="round">
+    <path d="M120 40 v12 M114 46 h12 M116 42 l8 8 M124 42 l-8 8"/>
+    <path d="M250 50 v10 M245 55 h10 M246.5 51.5 l7 7 M253.5 51.5 l-7 7"/>
+    <path d="M190 30 v8 M186 34 h8"/>
+    <path d="M320 40 v8 M316 44 h8"/>
+    <path d="M60 52 v8 M56 56 h8"/>
+  </g>
+  <g fill="#ffffff"><circle cx="30" cy="30" r="2"/><circle cx="90" cy="70" r="2"/><circle cx="160" cy="62" r="1.6"/><circle cx="220" cy="80" r="2"/><circle cx="290" cy="70" r="1.6"/><circle cx="340" cy="90" r="2"/></g>
+  <!-- snowy hills -->
+  <path d="M0 118 C70 98 140 104 200 116 C260 104 320 100 360 110 L360 160 L0 160 Z" fill="#ffffff" stroke="#3a2a20" stroke-width="2"/>
+  <path d="M0 140 C80 132 160 136 240 140 C290 136 330 134 360 136 L360 160 L0 160 Z" fill="#dbeeff"/>
+  <!-- snowy pines -->
+  <g stroke="#3a2a20" stroke-width="1.8" stroke-linejoin="round">
+    <rect x="38" y="120" width="8" height="12" fill="#6b4a2a"/>
+    <path d="M42 60 L62 96 L54 96 L68 120 L16 120 L30 96 L22 96 Z" fill="#2e6b4a"/>
+    <path d="M42 60 L50 74 L45 72 L42 76 L39 72 L34 74 Z M30 96 L36 100 L42 96 L48 100 L54 96 Z M16 120 L28 114 L40 120 L52 114 L68 120 Z" fill="#ffffff"/>
+    <rect x="320" y="122" width="6" height="10" fill="#6b4a2a"/>
+    <path d="M323 76 L338 104 L332 104 L342 122 L304 122 L314 104 L308 104 Z" fill="#2e6b4a"/>
+    <path d="M323 76 L329 86 L323 84 L317 86 Z M304 122 L314 117 L323 122 L332 117 L342 122 Z" fill="#ffffff"/>
+  </g>
+  <!-- snowman -->
+  <path d="M234 120 L214 108 M266 120 L284 106" stroke="#6b4a2a" stroke-width="3" stroke-linecap="round"/>
+  <g stroke="#3a2a20" stroke-width="2">
+    <circle cx="250" cy="126" r="18" fill="#ffffff"/>
+    <circle cx="250" cy="96" r="13" fill="#ffffff"/>
+    <path d="M238 106 C244 112 256 112 262 106 L264 112 C256 118 244 118 236 112 Z" fill="#e0483a"/>
+    <path d="M258 110 L262 124 L256 124 Z" fill="#e0483a"/>
+    <path d="M238 86 H262 L258 70 H242 Z" fill="#2b2b33"/>
+    <path d="M250 98 L262 100 L250 102 Z" fill="#ff8a1f"/>
+  </g>
+  <g fill="#2b2b33"><circle cx="246" cy="93" r="1.6"/><circle cx="254" cy="93" r="1.6"/><circle cx="250" cy="122" r="2"/><circle cx="250" cy="130" r="2"/></g>
+  <!-- sled tracks -->
+  <path d="M90 150 C130 142 170 146 200 150" fill="none" stroke="#b9d9f2" stroke-width="2.5" stroke-dasharray="6 5"/>
+</svg>

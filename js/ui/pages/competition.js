@@ -3,11 +3,13 @@
 
 import { loadStandings } from '../../data/competitionData.js';
 import { RANKING_MODES } from '../../rules/ranking.js';
-import { COMPETITION_NAME_MAX } from '../../state/competition.js';
-import { createCompetition, getActiveCompetition, getPartyMembers, setActiveCompetition } from '../../state/store.js';
+import { COMPETITION_NAME_MAX, COMPETITION_THEMES } from '../../state/competition.js';
+import {
+  createCompetition, getActiveCompetition, getCompetitionTheme, getPartyMembers, setActiveCompetition, setCompetitionTheme,
+} from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
 import { todayISO } from '../../util/date.js';
-import { circusHeader, competitionMeta, standingsList } from '../competitionBlock.js';
+import { circusHeader, competitionMeta, standingsList, THEME_ART, themedCardClass } from '../competitionBlock.js';
 import { card, notConnectedBanner, screenHeader } from '../components.js';
 import { h } from '../dom.js';
 
@@ -18,17 +20,44 @@ export async function renderCompetition({ state, steps, toast }) {
   const members = getPartyMembers(state);
   const active = getActiveCompetition(state);
   const standings = active ? await loadStandings(active, members, steps, today) : [];
+  const theme = getCompetitionTheme(active, state);
 
   return h('div', { class: 'page page-competition' },
     screenHeader(T.screenTitle, 'profile'),
     notConnectedBanner(T.notConnected),
-    h('section', { class: 'card card--circus' },
-      circusHeader(),
+    h('section', { class: themedCardClass(theme) },
+      circusHeader(theme),
       active ? competitionMeta(active, today) : h('p', { class: 'empty', text: T.none }),
       active ? standingsList(active, standings, members) : null,
     ),
+    active ? themePicker(active, theme, toast) : null,
     competitionPicker(state),
     createForm(today, toast),
+  );
+}
+
+/** Theme buttons for the active competition: classic circus (default) + one per season. */
+function themePicker(competition, current, toast) {
+  return card(T.themeTitle,
+    h('p', { class: 'hint', text: T.themeHint }),
+    h('div', { class: 'theme-grid', attrs: { role: 'radiogroup', 'aria-label': T.themeTitle } },
+      COMPETITION_THEMES.map((theme) => {
+        const selected = theme === current;
+        return h('button', {
+          class: `theme-option${selected ? ' theme-option--selected' : ''}`,
+          attrs: { type: 'button', role: 'radio', 'aria-checked': selected ? 'true' : 'false' },
+          on: {
+            click: () => {
+              if (!selected && setCompetitionTheme(competition.id, theme)) toast(T.themeSaved(T.themes[theme]));
+            },
+          },
+        },
+        h('img', { class: 'theme-thumb', attrs: { src: THEME_ART[theme], alt: '' } }),
+        selected ? h('span', { class: 'option-check', attrs: { 'aria-hidden': 'true' } }, '✓') : null,
+        h('span', { class: 'theme-name', text: T.themes[theme] }),
+        );
+      }),
+    ),
   );
 }
 
