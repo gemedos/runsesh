@@ -206,3 +206,38 @@ Safe-area insets are respected by the top bar, the bottom bar and the side rail.
 - Contrast: body text ≥ 4.5:1 on its background in both themes; stickers use dark text on white.
 - The world is a focusable scroll region with an aria-label; the minimap avatars are buttons with names and steps.
 - Animations respect `prefers-reduced-motion`.
+
+---
+
+## 7. Avatar ("stomper") concept
+
+Studied from the references: the character is always seen **from behind, three-quarter**, so the
+face never shows: the head is a plain disc. Our figure is drawn from scratch to the same brief:
+
+| Trait | Spec |
+|---|---|
+| Head | Small circle (≈ half the sweater width), sits straight on the collar, no neck |
+| Torso | Boxy, oversized top with drop shoulders; ribbed hem and cuffs on knitwear |
+| Pose | High-knee stomp: front thigh almost horizontal, shin straight down; standing leg straight. Back arm swings out left with the elbow bent down, front arm out right with the forearm hanging |
+| Legs | Long and baggy; trousers taper into long socks |
+| Feet | Long socks with a coloured band + chunky slides (or sneakers) |
+| Line | Flat fills, thin dark edge (1.8 units), one soft shadow under the standing foot |
+| Profile picture | Close-up crop: head fills the upper circle, shoulders/collar show at the bottom |
+
+Wardrobe redesign (same IDs, new drawings): knit sweater with diamond band (default), oversized tee,
+tank, hoodie with bunched hood and pocket, button shirt with rolled sleeves (`t_jacket`),
+race singlet with back bib, track jacket. Baggy joggers (default), baggy shorts, running shorts,
+leggings, pleated skirt. Slides with long socks (default), sneakers. Hair is drawn from behind
+(covering the top and back of the head): mop, buzz, spikes, long, bob, ponytail with tie, bun,
+curl cloud, mohawk. Glasses show as an arm plus the lens edge at the side of the head.
+
+## 8. Slider overlay (v2.1)
+
+The minimap is a slim (34px) translucent bar laid over the bottom of the world. The ground path is
+drawn taller so it continues underneath the bar and shows through it. Avatars stay 36px and
+overhang the bar. Step markers are teal notches with small labels above the bar.
+
+## 9. Custom profile photo (placeholder)
+
+An orange camera badge sits on the profile picture. In Phase 1 it only explains that photos are
+coming later; there is no file input and no file is read. Upload, validation and storage arrive in Phase 3.

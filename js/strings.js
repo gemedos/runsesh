@@ -106,6 +106,8 @@ export const STRINGS = Object.freeze({
     yourAvatar: 'Your avatar',
     tapToCustomize: 'Tap to customize',
     customizeButton: 'Customize avatar',
+    uploadPhoto: 'Use your own photo as profile picture',
+    photoLater: 'Custom profile photos are coming in a later phase.',
     darkTheme: 'Dark theme',
     groupParty: 'PARTY',
     groupSettings: 'SETTINGS',

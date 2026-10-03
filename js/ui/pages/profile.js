@@ -38,14 +38,33 @@ function themeSwitch() {
   ));
 }
 
-export function renderProfile({ state }) {
+/**
+ * Placeholder for custom profile photos (Phase 3). It deliberately has no file input and
+ * reads no files yet; it only tells the user the feature is coming.
+ */
+function photoButton(toast) {
+  const camera = s('svg', { class: 'pfp-upload-icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    s('path', { d: 'M4 8 H7.5 L9 5.5 H15 L16.5 8 H20 V19 H4 Z' }),
+    s('circle', { cx: 12, cy: 13, r: 3.5 }),
+  );
+  return h('button', {
+    class: 'pfp-upload',
+    attrs: { type: 'button', 'aria-label': T.uploadPhoto, title: T.uploadPhoto },
+    on: { click: () => toast(T.photoLater) },
+  }, camera);
+}
+
+export function renderProfile({ state, toast }) {
   return h('div', { class: 'page page-profile' },
     h('div', { class: 'profile-identity' },
       h('a', { class: 'profile-banner scene', attrs: { href: '#/profile/avatar', 'aria-label': T.customize } },
         h('span', { class: 'stomp' }, buildAvatarSvg(state.avatar, { label: T.yourAvatar })),
       ),
       h('div', { class: 'profile-head' },
-        avatarBadge(state.avatar, { size: 'xl' }),
+        h('span', { class: 'pfp' },
+          avatarBadge(state.avatar, { size: 'xl' }),
+          photoButton(toast),
+        ),
         h('p', { class: 'profile-name', text: state.account.name }),
         h('p', { class: 'profile-sub', text: state.party.name }),
         h('a', { class: 'btn btn-pill', attrs: { href: '#/profile/avatar' } }, hangerIcon(), h('span', { text: T.customizeButton })),

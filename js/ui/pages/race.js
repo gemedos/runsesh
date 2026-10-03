@@ -20,9 +20,9 @@ const WORLD_WIDTH = 2400;
 const WORLD_PAD = 150;
 // Depth lanes: further back = higher on the path and smaller.
 const LANES = [
-  { bottom: 16, scale: 1, z: 30 },
-  { bottom: 44, scale: 0.86, z: 20 },
-  { bottom: 70, scale: 0.74, z: 10 },
+  { bottom: 76, scale: 1, z: 30 },
+  { bottom: 102, scale: 0.86, z: 20 },
+  { bottom: 126, scale: 0.74, z: 10 },
 ];
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -203,8 +203,7 @@ function stage(members, ranking, mySteps, meId) {
   enableRailDrag(rail, world);
 
   const node = h('section', { class: 'stage' },
-    h('div', { class: 'stage-view' }, world, hero),
-    minimap,
+    h('div', { class: 'stage-view' }, world, hero, minimap),
   );
   onMount(node, () => requestAnimationFrame(() => {
     const me = runners.get(meId);

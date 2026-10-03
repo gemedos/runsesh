@@ -67,8 +67,9 @@ export function sanitizeAvatar(input) {
   return validateAvatar(input) || DEFAULT_AVATAR;
 }
 
-export const FULL_VIEWBOX = '18 4 170 282';
-export const HEAD_VIEWBOX = '70 8 76 76';
+export const FULL_VIEWBOX = '26 4 158 250';
+/** Profile-picture close-up: big head in the upper circle, shoulders and collar at the bottom. */
+export const HEAD_VIEWBOX = '70 12 72 72';
 
 /**
  * Builds an <svg> for an avatar.
