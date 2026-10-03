@@ -7,8 +7,8 @@ This file defines non-negotiable rules for building this project. Read it fully 
 - The app is a **Progressive Web App hosted on GitHub Pages**. GitHub Pages serves **static files only**. There is no server code, no server-side sessions, no private environment variables, and no custom HTTP response headers.
 - Therefore **this repository must never implement its own password storage, login logic, or session management.** All authentication and user data live in a **managed backend/auth provider** (chosen below). The front end is an untrusted client; it only calls the provider's API.
 - **The repository and the built site are public.** Anything in the repo or the JS bundle is visible to everyone. Treat the whole front end as readable by attackers.
-- Backend / auth provider: `[FILL IN: Supabase | Firebase | Auth0 | Clerk | other]`. Do not switch or add providers without asking me.
-- Stack: `[FILL IN, e.g. Vite + TypeScript, or vanilla JS]`. If unspecified, ask me before scaffolding. Prefer few dependencies.
+- Backend / auth provider: Supabase (Auth + Postgres + Edge Functions, free plan). Do not switch or add providers without asking me.
+- Stack: Plain HTML/CSS/JavaScript (ES modules), no framework, no bundler; pinned libraries vendored in /vendor/. Prefer few dependencies.
 
 ## 2. Hard "never" rules
 
