@@ -36,10 +36,3 @@ export function validateCompetitionInput(input) {
   if (Object.keys(errors).length) return { ok: false, errors };
   return { ok: true, value: { name: name || STRINGS.competition.form.defaultName, start, end, mode: input.mode, golden: input.golden } };
 }
-
-/** Validates a stored competition (from localStorage) including its id. */
-export function validateStoredCompetition(raw) {
-  if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !/^[\w-]{1,64}$/.test(raw.id)) return null;
-  const res = validateCompetitionInput(raw);
-  return res.ok ? Object.freeze({ id: raw.id, ...res.value }) : null;
-}

@@ -1,12 +1,19 @@
-// Middle tab: Competition. Shows the active competition (themed header, details,
-// standings) that used to sit at the bottom of the Race page.
+// Middle tab: Competition.
+// - No party: create or join a party first.
+// - Party without a competition: "Create or join a competition". The leader gets the create
+//   button; members see that they are waiting for the leader (they take part automatically).
+// - Running competition: themed header (or the leader's photo), details, live standings.
+// - Always (in a party): calendar of past competitions and the Hall of Fame.
 
+import { backgroundUrl } from '../../data/competitionRepo.js';
 import { loadStandings } from '../../data/competitionData.js';
-import { getActiveCompetition, getCompetitionTheme, getPartyMembers } from '../../state/store.js';
+import { getLeader, getPartyMembers, isLeader } from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
 import { todayISO } from '../../util/date.js';
 import { circusHeader, competitionMeta, standingsList, themedCardClass } from '../competitionBlock.js';
+import { calendarCard, finishedDetail, hallOfFameCard } from '../competitionCalendar.js';
 import { h, s } from '../dom.js';
+import { partyGate } from './party.js';
 
 const T = STRINGS.competition;
 
@@ -17,37 +24,67 @@ function gearIcon() {
   );
 }
 
-export async function renderCompetitionHub({ state, steps }) {
+export async function renderCompetitionHub({ state, steps, navigate }) {
+  const gate = partyGate(state, navigate);
+  if (gate) return h('div', { class: 'page page-comp-hub' }, h('h1', { class: 'sr-only', text: T.hubTitle }), gate);
+
   const today = todayISO();
   const members = getPartyMembers(state);
-  const competition = getActiveCompetition(state);
-  const settings = h('a', { class: 'btn btn-pill', attrs: { href: '#/profile/competition' } }, gearIcon(), h('span', { text: T.settingsButton }));
+  const meId = state.auth.userId;
+  const leader = isLeader(state);
+  const leaderName = (getLeader(state) || {}).name || T.leaderFallback;
+  const competition = state.competition;
 
+  let top;
   if (!competition) {
-    return h('div', { class: 'page page-comp-hub' },
-      h('h1', { class: 'sr-only', text: T.hubTitle }),
-      h('section', { class: themedCardClass() },
-        circusHeader(),
-        h('p', { class: 'empty', text: T.none }),
-        h('a', { class: 'btn btn-primary', attrs: { href: '#/profile/competition' }, text: T.create }),
+    top = h('section', { class: themedCardClass() },
+      circusHeader(),
+      h('h2', { class: 'card-title', text: T.createOrJoin }),
+      h('p', { class: 'hint', text: leader ? T.leaderEmpty : T.memberEmpty(leaderName) }),
+      leader
+        ? h('a', { class: 'btn btn-primary', attrs: { href: '#/profile/competition' }, text: T.create })
+        : null,
+    );
+  } else {
+    const [photo, standings] = await Promise.all([
+      backgroundUrl(competition.backgroundPath),
+      loadStandings(competition, members, steps, today),
+    ]);
+    top = h('div', { class: 'section' },
+      h('section', { class: themedCardClass(competition.theme) },
+        circusHeader(competition.theme, photo),
+        competitionMeta(competition, today),
+        h('p', { class: 'hint', text: T.autoJoin }),
+      ),
+      h('section', { class: 'section' },
+        h('h2', { class: 'section-title', text: T.standingsTitle }),
+        standingsList(competition, standings, members),
+        h('p', { class: 'hint', text: T.mockRulesHint }),
+      ),
+      h('div', { class: 'hub-actions' },
+        h('a', { class: 'btn btn-pill', attrs: { href: '#/profile/competition' } }, gearIcon(), h('span', { text: leader ? T.settingsButton : T.rulesButton })),
       ),
     );
   }
 
-  const theme = getCompetitionTheme(competition, state);
-  const standings = await loadStandings(competition, members, steps, today);
+  const all = competition ? [competition, ...state.history] : [...state.history];
+  const calendar = calendarCard({
+    competitions: all,
+    today,
+    renderDetail: async (c) => {
+      if (c.finished) return finishedDetail(c, state.results[c.id], meId);
+      const live = await loadStandings(c, members, steps, today);
+      return h('div', { class: 'cal-result' },
+        h('h4', { class: 'cal-result-title', text: T.liveTitle(c.name) }),
+        standingsList(c, live, members),
+      );
+    },
+  });
 
   return h('div', { class: 'page page-comp-hub' },
     h('h1', { class: 'sr-only', text: T.hubTitle }),
-    h('section', { class: themedCardClass(theme) },
-      circusHeader(theme),
-      competitionMeta(competition, today),
-    ),
-    h('section', { class: 'section' },
-      h('h2', { class: 'section-title', text: T.standingsTitle }),
-      standingsList(competition, standings, members),
-      h('p', { class: 'hint', text: T.mockRulesHint }),
-    ),
-    h('div', { class: 'hub-actions' }, settings),
+    top,
+    calendar,
+    hallOfFameCard({ history: state.history, results: state.results, meId }),
   );
 }

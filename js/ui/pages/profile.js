@@ -67,7 +67,7 @@ export function renderProfile({ state, toast }) {
           photoButton(toast),
         ),
         h('p', { class: 'profile-name', text: (state.profile && state.profile.displayName) || T.noName }),
-        h('p', { class: 'profile-sub', text: state.party.name }),
+        state.party ? h('p', { class: 'profile-sub', text: state.party.name }) : null,
         h('a', { class: 'btn btn-pill', attrs: { href: '#/profile/avatar' } }, hangerIcon(), h('span', { text: T.customizeButton })),
       ),
     ),

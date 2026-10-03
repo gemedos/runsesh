@@ -56,8 +56,8 @@ export async function syncFromSource(source, userId, fromDay, toDay) {
   return { ok: discarded === 0, saved: rows.length, discarded };
 }
 
-/** The user's own saved days, newest first. */
-export async function fetchOwnHistory(userId, fromDay, toDay) {
+/** Saved days of the signed-in user, or of a member of their party (RLS decides), newest first. */
+export async function fetchStepHistory(userId, fromDay, toDay) {
   const { data, error } = await getSupabase()
     .from('daily_steps')
     .select('day, steps, source')

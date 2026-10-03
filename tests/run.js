@@ -3,6 +3,7 @@ import './ranking.test.js';
 import './avatar.test.js';
 import './competition.test.js';
 import './auth.test.js';
+import './party.test.js';
 import { results } from './harness.js';
 
 const out = document.getElementById('results');
