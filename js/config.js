@@ -9,6 +9,9 @@
 export const SUPABASE_URL = 'https://qxjeaoxujpyafksxzqak.supabase.co';
 export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_6teP37BVtSNmW6Gg_TN5tw_3f_KOQmy';
 
+/** Where phones send their daily step totals (Edge Function `ingest-steps`; token in the header only). */
+export const INGEST_URL = `${SUPABASE_URL}/functions/v1/ingest-steps`;
+
 /** Public web address of the app (used to build email links). */
 export const SITE_URL = 'https://gemedos.github.io/runsesh/';
 
