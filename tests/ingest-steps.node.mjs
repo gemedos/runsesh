@@ -40,6 +40,23 @@ test('generic: several days, at most 3, no repeats', () => {
   assert.equal(parseBody({ days: [{ day: '2026-10-10', steps: 1 }, { day: '2026-10-10', steps: 2 }] }, TODAY), null);
 });
 
+test('generic: a day outside the window rejects the request', () => {
+  assert.equal(parseBody({ day: '2026-10-06', steps: 1 }, TODAY), null); // 4 days back
+  assert.equal(parseBody({ day: '2026-10-12', steps: 1 }, TODAY), null); // 2 days ahead
+  assert.deepEqual(parseBody({ day: '2026-10-07', steps: 1 }, TODAY), { days: [{ day: '2026-10-07', steps: 1 }] });
+  assert.deepEqual(parseBody({ day: '2026-10-11', steps: 1 }, TODAY), { days: [{ day: '2026-10-11', steps: 1 }] });
+});
+
+test('generic: a mixed valid and invalid batch rejects everything', () => {
+  assert.equal(parseBody({ days: [{ day: '2026-10-10', steps: 10 }, { day: '2026-10-09', steps: -1 }] }, TODAY), null);
+  assert.equal(parseBody({ days: [{ day: '2026-10-10', steps: 10 }, { day: '2026-09-01', steps: 5 }] }, TODAY), null);
+});
+
+test('generic: a user_id in the body is ignored', () => {
+  const body = { user_id: '00000000-0000-4000-8000-0000000000bb', day: '2026-10-10', steps: 5 };
+  assert.deepEqual(parseBody(body, TODAY), { days: [{ day: '2026-10-10', steps: 5 }] });
+});
+
 test('life dashboard: reads only daily_totals date and steps', () => {
   const body = lifeDashboard({
     steps: [fakeRecord], distance: [{ meters: 3.5 }], _diagnostics: { steps: { permission_granted: true } },

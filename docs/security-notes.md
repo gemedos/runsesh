@@ -3,8 +3,8 @@
 ## Step counts are self-reported
 
 Every step number in runsesh comes from the user's own device: typed in by hand ("manual"),
-read by the Android app from Health Connect ("health_connect"), or, in a later phase, sent by
-an Apple Shortcut ("shortcut"). **The server cannot know whether a number is true.**
+sent from Health Connect by a third-party Android app ("health_connect"), or sent by an
+Apple Shortcut ("shortcut"). **The server cannot know whether a number is true.**
 
 Anyone who controls their own account can:
 - type any number into manual entry;
@@ -41,33 +41,61 @@ They stop casual abuse and mistakes, not a determined cheater.
 - **Social trust:** parties are small groups of friends; show the source and last update
   time next to each number so members can notice odd values.
 
-## Apple Shortcut keys (CLAUDE.md §2.1 exception, approved 2026-10-04)
-iPhone web apps cannot read Apple Health, so an Apple Shortcut sends the daily total. A
-Shortcut cannot hold a Supabase session, so each user can create one personal **Shortcut key**.
+## Phone ingest tokens (CLAUDE.md "Health data ingest tokens", approved 2026-10-04)
+Phones send daily step totals without a Supabase session: the Android Health Connect webhook app
+and the iPhone Shortcut. Each user can create up to 2 personal **ingest tokens** (platform
+`android` or `ios`). This replaced the earlier Apple Shortcut keys (`shortcut_keys`, removed by
+migration 14).
 
 How it is protected:
-- Created by the `shortcut-key` Edge Function from 32 random bytes (`crypto.getRandomValues`),
-  format `rs_` + 43 base64url characters (256 bits; guessing is infeasible).
-- Only its **SHA-256 hash** is stored (`public.shortcut_keys`, no client access: RLS on with no
-  policies, all privileges revoked from `anon`/`authenticated`). The app shows the key once
-  and never stores it; it is never logged and only travels in the `Authorization` header.
-- One key per user. Creating a new one replaces the old; the user can revoke it; deleting the
-  account deletes it.
-- The key can only call `ingest-steps`, which writes the **key owner's** `daily_steps` row with
-  `source = 'shortcut'`. The owner always comes from the key, never from the request. The usual
-  constraints and the 3-days-back / 1-day-ahead window apply. It cannot read anything or log in.
-- 30 requests per key per hour (`public.ingest_shortcut_steps`, callable only by the service role).
+- Created by the `ingest-tokens` Edge Function (Verify JWT ON; the user id comes from the
+  session) from 32 random bytes (`crypto.getRandomValues`). Format `<token id>.<secret>`:
+  a uuid plus 43 base64url characters (256 bits; guessing is infeasible).
+- Only the **SHA-256 hash** of the secret is stored (`public.ingest_tokens`). Clients can list
+  their own tokens through RLS and column grants that exclude `secret_hash` and the rate-limit
+  counters, and can delete (revoke) their own tokens. They cannot insert or update tokens.
+- The token is shown once, kept only in the page until the user taps Done or leaves the screen,
+  never written to storage or caches, never logged, and only sent in the `Authorization` header.
+- At most 2 tokens per user (checked in the database under a per-user lock). Revoking deletes
+  the row, so it stops working immediately. Deleting the account deletes the tokens.
+- The token can only call `ingest-steps`, which writes the **token owner's** `daily_steps`
+  through `public.record_ingest` (service role only). The owner always comes from the token,
+  never from the request; `source` is `health_connect` for Android and `shortcut` for iPhone
+  tokens. The usual constraints and the 3-days-back / 1-day-ahead window apply.
+- Every authentication failure (missing, malformed, unknown, revoked, wrong secret) returns the
+  identical 401. The hash comparison happens in the database; comparing two SHA-256 hashes leaks
+  nothing useful through timing, because an attacker cannot choose the hash of a guess.
+- 20 requests per token per hour (429 afterwards), 16 KB body limit (413), JSON only (415).
+- Logs hold only the outcome and the first 8 characters of the token id: never the token, the
+  body, dates or step values. No CORS: browsers cannot call the endpoint from other sites.
+
+### Accepted trade-offs (Phase 2 Part B)
+1. **A third-party app reads Health Connect.** Android users install Life Dashboard Companion
+   (independent, open source, MIT). Neither we nor the user control its code. Risk reduction:
+   it has recent releases; the guide pins one release (1.23.0, with GitHub's SHA-256 of the APK)
+   and links only to the official releases page; the user grants only the Steps permission and
+   enables only Steps for the webhook; runsesh reads only `daily_totals[].date` and `.steps` and
+   ignores, never stores and never logs everything else in the payload.
+2. **The endpoint runs with Verify JWT OFF**, because phone apps have no login session. The
+   personal token is the only gate, so the hardening above is mandatory and must not be relaxed.
+3. **Step values are self-reported** and can be faked (see above). `source` says which path was
+   used, not that the number is true.
+4. **Background sync depends on the third-party app and on Android's battery management.** Gaps
+   are possible; the user guide says so, and manual entry remains available.
 
 What it does **not** protect against:
-- A leaked key (shared Shortcut, iCloud backup, someone with the phone) lets that person
-  overwrite the owner's recent step totals until the key is revoked or replaced.
-- Requests with unknown keys are not rate limited per IP (Supabase has no built-in per-IP
+- A leaked token (shared screenshot, someone with the phone, a compromised app) lets that person
+  overwrite the owner's recent step totals until the token is revoked.
+- Requests with unknown tokens are not rate limited per IP (Supabase has no built-in per-IP
   limit for functions); they only cost Edge Function invocations from the monthly quota.
-- Steps sent by a Shortcut are still **self-reported**: the user can edit the Shortcut or the
-  Health data. `source = 'shortcut'` says which path was used, not that the number is true.
-- **Double counting:** the Shortcut sums raw Health samples. If both the iPhone and an Apple Watch
-  record, the sum counts steps twice unless the Shortcut filters to one source (the set-up
-  guide says so). Unlike Health Connect on Android, Shortcuts has no de-duplicated daily total.
+- **Which day:** the Android app's `daily_totals[].date` is stored as sent. Its docs do not say
+  which time zone that date uses; we assume the phone's local day (to be confirmed by comparing
+  with the Health Connect app). The iPhone Shortcut sends its own local date.
+- **Double counting on iPhone:** the Shortcut sums raw Health samples. If both the iPhone and an
+  Apple Watch record, the sum counts steps twice unless the Shortcut filters to one source (the
+  set-up guide says so). On Android, `daily_totals` comes from Health Connect's de-duplicated
+  aggregate.
+- **Backfill:** only today and the last 3 days are accepted, so older history cannot be sent.
 
 ## Parties and invite links (CLAUDE.md exception, approved 2026-10-05)
 - **One party per user** (primary key on `party_members.user_id`), one leader per party (unique
@@ -134,8 +162,6 @@ verifier there. Verified in `vendor/supabase.js` 2.117.2.
   "open the link in the same browser where you asked for it, or request a new one".
 - **Installed apps are affected**, because their storage is separate from the browser that
   opens the email:
-  - the Android app (Capacitor, Part B): email links always open in the phone's browser, never
-    in the app, so a reset requested in the app can never finish through a `?code=` link;
   - an installed iPhone home-screen app: its storage is separate from Safari's;
   - an installed Android PWA when the email opens in a different browser than the one it was
     installed from.

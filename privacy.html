@@ -16,7 +16,7 @@
 
     
 
-    <p>Last updated: 04/10/2026 (date)</p>
+    <p>Last updated: 05/10/2026</p>
     <p>runsesh is a small app for step competitions between friends. This page explains, in plain language, what data runsesh collects, why, and what you can do about it.</p>
 
     <h2>Who runs runsesh</h2>
@@ -28,12 +28,21 @@
       <li><strong>Display name</strong>: the name your party sees.</li>
       <li><strong>Avatar</strong>: the character you design (body color, hair, clothes, accessories).</li>
       <li><strong>Time zone</strong>: so your "today" matches your local day.</li>
-      <li><strong>Daily step totals</strong>: one number per day, plus where it came from (typed in by you, or read from Health Connect).</li>
+      <li><strong>Daily step totals</strong>: one number per day, plus where it came from (typed in by you, sent from Health Connect on Android, or sent by an Apple Shortcut on iPhone).</li>
+      <li><strong>Phone tokens</strong> (only if you connect a phone): for each personal token you create, a scrambled copy (hash) of it, whether it is for Android or iPhone, when it was created and when it last sent data. We never keep the token itself.</li>
     </ul>
     <p>Your password goes straight from the app to our login provider (Supabase Auth), which stores only a secure hash of it. runsesh itself never stores, logs or displays your password.</p>
 
-    <h2>Android: Health Connect</h2>
-    <p>On Android, the runsesh app reads your steps from Health Connect <strong>only after you grant permission</strong>, and only the step count permission is requested. The app reads your <strong>daily totals</strong> and sends only those totals to our server. It does not read or send individual walks, locations, heart rate or any other health data. You can remove the permission at any time in the Health Connect settings.</p>
+    <h2>Android: Health Connect (third-party app)</h2>
+    <p>runsesh has no Android app of its own. If you want your Android steps sent automatically, you choose to install <strong>Life Dashboard Companion</strong>, an independent open-source app that is <strong>not made or controlled by runsesh</strong>. That app reads Health Connect on your phone under <strong>its own privacy terms</strong>, with the permissions you grant it. Our set-up guide asks you to grant it only the Steps permission.</p>
+    <p>The app sends its data to runsesh with a <strong>personal token</strong> that you create in runsesh. From what it sends, runsesh keeps <strong>only your daily step totals</strong> (today and the last 3 days). Anything else in the message (for example minute-by-minute step records or other data types) is ignored: it is not stored and not logged.</p>
+    <!-- TODO: link the app's own privacy information once its project publishes a policy. -->
+
+    <h2>iPhone: Apple Shortcut</h2>
+    <p>On iPhone, an Apple Shortcut that you build yourself reads your step total from Apple Health and sends <strong>only that daily total</strong> to runsesh, with a personal token. Apple Health data stays on your phone otherwise.</p>
+
+    <h2>Personal tokens</h2>
+    <p>A token only lets a phone send <strong>your own</strong> daily steps. It cannot read your data or log in. It is shown to you once; we store only a scrambled copy (hash), so we cannot show it again. You can revoke a token at any time (Profile → Health connect, or runsesh on iPhone); it stops working immediately. Tokens are deleted with your account.</p>
 
     <h2>Why we use it</h2>
     <p>Only to run the app: to show rankings and competitions among the members of your party.</p>
@@ -47,7 +56,10 @@
 
     <h2>Where it is stored</h2>
     <p>Your data is stored with Supabase (database and login service). West EU(ireland).</p>
-    <p>Other people can only see what the app shows them: in a later version, members of your party will see your display name, avatar and daily step totals.</p>
+    <p>Other people can only see what the app shows them: members of your party see your display name, avatar, time zone and daily step totals, and the results of competitions you took part in. Nobody else can see your tokens.</p>
+    <!-- TODO: mention the competition background photo (party leader's upload, visible to the party) and the data processing agreement / legal basis (GDPR) before launch. -->
+    <!-- TODO: this page is a draft written for a hobby project; have it reviewed before real users join. -->
+
 
     <h2>How long we keep it</h2>
     <p>Until you delete your account. When an account is deleted, its profile and step totals are deleted with it.</p>

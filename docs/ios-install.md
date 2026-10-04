@@ -28,10 +28,12 @@ A web app cannot read Apple Health. You have two options:
 - **By hand:** Profile → Health connect → Manual entry.
 - **Automatically with an Apple Shortcut** (recommended), set up once:
 
-### 1. Get your Shortcut key
-In runsesh: **Profile → runsesh on iPhone → Create Shortcut key**, then **Copy key**.
-The key is shown **only once** and works like a password for sending your steps: don't share it
-or post screenshots of it. If it leaks or you lose it, tap **Replace key** or **Revoke key**.
+### 1. Get your iPhone token
+In runsesh: **Profile → runsesh on iPhone → Create iPhone token**, then **Copy**.
+The token is shown **only once** and works like a password for sending your steps: don't share it
+or post screenshots of it. It can only send your own daily steps. If it leaks or you lose it, tap
+**Revoke** and create a new one (at most 2 tokens per account, for example one iPhone and one
+Android phone).
 
 ### 2. Build the Shortcut
 In the **Shortcuts** app, tap **+** and name it "runsesh steps". Add these actions in order:
@@ -41,7 +43,8 @@ In the **Shortcuts** app, tap **+** and name it "runsesh steps". Add these actio
 2. **Calculate Statistics**: *Sum* of the Health Samples, then **Round Number** to *Ones Place*.
 3. **Format Date**: *Current Date*, custom format `yyyy-MM-dd`.
 4. **Get Contents of URL**: tap *Copy address* in runsesh and paste it as the URL. Method *POST*.
-   Header `Authorization` = `Bearer ` followed by your key (one space after Bearer).
+   Add a header: Key `Authorization`, Value = paste what you copied in step 1 (it starts with
+   `Bearer `).
    Request Body *JSON*: `day` (Text) = *Formatted Date*, `steps` (Number) = *Rounded Number*.
 5. Tap ▶︎ once and allow access to Health. Your steps appear in Health connect in runsesh.
 
@@ -49,7 +52,7 @@ In the **Shortcuts** app, tap **+** and name it "runsesh steps". Add these actio
 **Automation** tab → **+** → *Time of Day* (for example 21:00, Daily) → *Run Immediately* →
 *Run Shortcut* "runsesh steps". You can also run it by hand any time.
 
-Limits: up to 30 sends per hour; only today and the last 3 days can be sent.
+Limits: up to 20 sends per hour; only today and the last 3 days can be sent.
 
 ## Updates
 There is no App Store update. When a new version is published you will see

@@ -112,45 +112,136 @@ Console shows nothing from the URL or the session.
    forwards to `auth-callback.html`, which shows the invalid message.
 7. Restore the `token_hash` templates afterwards.
 
-## 6c. Apple Shortcut keys
-Deploy both Edge Functions first (`docs/edge-functions.md`). Use the console session from
-"Setup" (User A signed in as `A`). `FN` is the functions base URL.
-```js
-const FN = `${SB_URL}/functions/v1`;
-const call = (path, opts = {}) => fetch(`${FN}/${path}`, opts).then(async (r) => [r.status, await r.json().catch(() => null)]);
+## 6c. Phone ingest tokens and the `ingest-steps` endpoint
+Deploy `ingest-tokens` (Verify JWT **ON**) and `ingest-steps` (Verify JWT **OFF**) first
+(`docs/edge-functions.md`). The parser itself is covered by `node tests/ingest-steps.node.mjs`.
+
+**Never paste a real token into chats, issues or files.** The commands below use the fake token
+`00000000-0000-4000-8000-000000000000.AAAA…`. Where a test needs a real one, create a token for
+the **test account A** in the app and type it only into your own `cmd` window with `set`.
+Revoke it when you are done.
+
+### Setup (Windows `cmd`, not PowerShell)
 ```
-1. **Create, shown once:** in the app (Profile → runsesh on iPhone → Create Shortcut key) create a
-   key and copy it into `KEY_A`. Leave the screen and come back: only "…last 4 characters" is shown.
-   In the dashboard Table Editor, `shortcut_keys` has one row for A with a 64-character
-   `key_hash` and **no** readable key.
+set URL=https://qxjeaoxujpyafksxzqak.supabase.co/functions/v1/ingest-steps
+set FAKE=00000000-0000-4000-8000-000000000000.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+set TODAY=2026-10-05
+```
+Set `TODAY` to today's **UTC** date. Every command prints the response headers and body
+(`-i`): read the first line (`HTTP/1.1 401` …) and the last line (the body).
+
+### 1. Every authentication failure is the identical 401 and writes nothing
+Expected for each: `401` with body exactly `{"error":"unauthorized"}`.
+```
+curl -s -i -X POST "%URL%" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":1}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer abc" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":1}"
+curl -s -i -X POST "%URL%" -H "Authorization: Basic abc" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":1}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %FAKE%" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":1}"
+```
+With a real token for A (`set TOKEN=<your test token>` and `set TOKEN_ID=<the part before the dot>`),
+right id but wrong secret:
+```
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN_ID%.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":1}"
+```
+Revoked token: after step 6.3, repeat the first request of step 3 with the revoked `%TOKEN%`:
+also `401`, immediately. A's steps for today must not change in any of these.
+
+### 2. Wrong method, content type, size and JSON
+```
+curl -s -i "%URL%"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %FAKE%" -H "Content-Type: text/plain" -d "{\"day\":\"%TODAY%\",\"steps\":1}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %FAKE%" -H "Content-Type: application/json" -d "{not json"
+for /L %i in (1,1,700) do @echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa>>big.json
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %FAKE%" -H "Content-Type: application/json" --data-binary "@big.json"
+del big.json
+```
+Expected: `405`, `415`, `400 {"error":"invalid"}`, `413 {"error":"too_large"}`. None of them
+writes anything.
+
+### 3. Valid and invalid payloads (real token for A)
+Create an Android token for A in the app and `set TOKEN=…`.
+```
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":4321}"
+```
+Expected `200 {"ok":true,"days":1}`. In the app (as A): today = 4,321 with source
+**Health Connect**, and the token shows "Last received …".
+
+Each of these must return `400 {"error":"invalid"}` and leave today at 4,321 (negative, over
+100,000, decimal, text, impossible date, outside the window, more than 3 days, a mixed valid and
+invalid batch):
+```
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":-1}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":100001}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":12.5}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"day\":\"%TODAY%\",\"steps\":\"9000\"}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"day\":\"2026-02-30\",\"steps\":1}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"day\":\"2020-01-01\",\"steps\":1}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"days\":[{\"day\":\"%TODAY%\",\"steps\":1},{\"day\":\"%TODAY%\",\"steps\":2},{\"day\":\"%TODAY%\",\"steps\":3},{\"day\":\"%TODAY%\",\"steps\":4}]}"
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"days\":[{\"day\":\"%TODAY%\",\"steps\":5000},{\"day\":\"2020-01-01\",\"steps\":1}]}"
+```
+A `user_id` in the body is ignored:
+```
+curl -s -i -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"user_id\":\"<user B id>\",\"day\":\"%TODAY%\",\"steps\":4322}"
+```
+Expected `200`: **A's** today becomes 4,322 and B's steps are unchanged.
+
+### 4. Rate limit
+Each token allows 20 requests per hour, counting every request with a valid token (including
+the ones above). Send 21 empty requests:
+```
+for /L %i in (1,1,21) do @curl -s -X POST "%URL%" -H "Authorization: Bearer %TOKEN%" -H "Content-Type: application/json" -d "{\"days\":[]}" & echo.
+```
+Expected: `{"ok":true,"days":0}` until the hour's 20th request, then `{"error":"rate_limited"}`
+(status 429). An hour after the first request it works again.
+
+### 5. Token table: own rows only, no hash, no direct writes (browser console)
+Use the console session from "Setup" (User A signed in as `A`; `client()` is anon). Create one
+token for **B** in the app first and note its `id` from the dashboard (Table Editor →
+`ingest_tokens`; never copy `secret_hash`).
+```js
+const B_TOKEN_ID = '<B token id>';
+await A.from('ingest_tokens').select('id, platform, secret_hint, created_at, last_used_at'); // expect only A's rows
+await A.from('ingest_tokens').select('id').eq('id', B_TOKEN_ID);                    // expect data: []
+await A.from('ingest_tokens').select('*');                                          // expect error 42501 (not every column is readable)
+await A.from('ingest_tokens').select('secret_hash');                                // expect error 42501
+await A.from('ingest_tokens').select('uses_in_window, window_start');               // expect error 42501
+await A.from('ingest_tokens').insert({ id: crypto.randomUUID(), user_id: A_ID, platform: 'android', secret_hash: '0'.repeat(64), secret_hint: 'AAAA' }); // expect error 42501
+await A.from('ingest_tokens').update({ platform: 'ios' }).eq('user_id', A_ID);      // expect error 42501
+await A.from('ingest_tokens').delete({ count: 'exact' }).eq('id', B_TOKEN_ID);      // expect count: 0 (B's token keeps working)
+await A.rpc('create_ingest_token', { p_id: crypto.randomUUID(), p_user_id: A_ID, p_platform: 'android', p_secret_hash: '0'.repeat(64), p_secret_hint: 'AAAA' }); // expect error 42501
+await A.rpc('record_ingest', { p_token_id: B_TOKEN_ID, p_secret_hash: '0'.repeat(64), p_days: [] }); // expect error 42501
+const anon = client();
+await anon.from('ingest_tokens').select('id');                                      // expect error 42501
+await anon.functions.invoke('ingest-tokens', { body: { platform: 'android' } });    // expect an error (401)
+```
+
+### 6. Shown once, at most 2, revoke is immediate (in the app, as A)
+1. Create a token: it appears once with Copy and Done. Tap Done, leave the screen and come back:
+   only "Token ending in …" is listed; the token cannot be shown again.
+2. With 2 tokens (any platforms) the create button is disabled. Check that the server refuses a
+   third too, **only when you already have 2** (so no token is printed to the console):
    ```js
-   const KEY_A = '<paste>';
+   await A.functions.invoke('ingest-tokens', { body: { platform: 'android' } }); // expect an error with status 409
    ```
-2. **Ingest works for the owner only:**
-   ```js
-   await call('ingest-steps', { method: 'POST', headers: { Authorization: `Bearer ${KEY_A}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ day: today, steps: 4321 }) });
-   // expect [200, {ok: true}]; A's daily_steps for today = 4321, source 'shortcut'
-   await call('ingest-steps', { method: 'POST', headers: { Authorization: `Bearer ${KEY_A}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: B_ID, day: today, steps: 1 }) });
-   // expect [200, …] but the row written is A's (user_id in the body is ignored); B unchanged
-   ```
-3. **Invalid input → 400:** `steps: -1`, `steps: 100001`, `steps: 12.5`, `steps: "9000"`,
-   `day: "2026-02-30"`, `day: shift(-4)` (outside the window), a body that is not JSON.
-4. **Wrong method → 405:** `await call('ingest-steps')` (GET).
-5. **Unknown / malformed / revoked key → 401:** `Bearer rs_` + 43 random characters; `Bearer abc`;
-   no header; then revoke the key in the app and repeat step 2 → 401.
-6. **Rate limit:** with a fresh key, send 31 valid requests within an hour → the 31st returns 429.
-7. **Replace:** create a new key → the old key returns 401, the new one works.
-8. **No client access:**
-   ```js
-   await A.from('shortcut_keys').select('*');        // expect error 42501 (permission denied)
-   await A.rpc('ingest_shortcut_steps', { p_key_hash: '0'.repeat(64), p_day: today, p_steps: 1 }); // expect error 42501
-   await client().from('shortcut_keys').select('*'); // anon: expect error 42501
-   ```
-9. **shortcut-key requires a session:** `await call('shortcut-key')` without a session → 401;
-   calling it from another web origin is blocked by CORS.
-10. **Nothing logged:** dashboard → Edge Functions → each function → Logs: no keys, step values
-    or emails appear (only status lines).
-11. **Account deletion** (when built): the user's `shortcut_keys` row is gone.
+3. Revoke one: it disappears from the list, and a request with it returns `401` at once.
+4. Log out on that device: the token card and any token on screen are gone.
+
+### 7. Logs contain nothing personal
+Dashboard → Edge Functions → `ingest-steps` → Logs: lines look like
+`ingest-steps outcome=ok token=1a2b3c4d`. No token, body, dates, step values or emails. Check
+`ingest-tokens` too: no tokens or user data.
+
+### 8. Real-world test (Android phone with Life Dashboard Companion 1.23.0)
+Follow `docs/android-setup.md`. After a Sync Now that reports records:
+- the token shows "Last received …" at the time of the sync;
+- runsesh shows today with source Health Connect;
+- **today's number matches the Health Connect app**. This confirms which day
+  `daily_totals.date` refers to. Write the result and the date here.
+
+### 9. Security Advisor
+Dashboard → Advisors → Security Advisor → Refresh. Expected: no **new** warnings from migrations
+13 and 14 (`create_ingest_token` and `record_ingest` are not SECURITY DEFINER, and only
+`service_role` may execute them). Note any warning and tell Claude.
 
 ## 6d. Parties, invites, competitions, background photo
 Use three test accounts: **A** (leader), **B** (member), **C** (not in A's party). In the console,

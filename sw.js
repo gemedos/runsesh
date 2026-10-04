@@ -1,7 +1,7 @@
 // Service worker: caches ONLY the static app shell. No user data, no API responses.
 // Bump CACHE_VERSION whenever any file in APP_SHELL changes.
 
-const CACHE_VERSION = 'v11';
+const CACHE_VERSION = 'v13';
 const CACHE_NAME = `runsesh-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [

@@ -7,6 +7,7 @@
 //   Accepted bodies (at most 16 KB):
 //     { "day": "YYYY-MM-DD", "steps": 1234 }                        iPhone Shortcut / generic
 //     { "days": [{ "day": "YYYY-MM-DD", "steps": 1234 }, ...] }     generic, up to 3 days
+//       (generic: any invalid item, or a day outside the allowed window, rejects everything)
 //     Life Dashboard Companion payload: only `daily_totals[].date` and `.steps` are read;
 //       raw records, distance, diagnostics and everything else are ignored, never stored or logged.
 //       A payload without `daily_totals` (heartbeat, option off) is accepted and writes nothing.
@@ -18,9 +19,6 @@
 // for the allowed days; the owner comes from the token, never from the request.
 // Logs: only the outcome and the first 8 characters of the token id. Never the token, the body,
 // step values or dates. No CORS: no browser calls this function.
-//
-// TRANSITION: until the clean-up migration removes shortcut_keys, the old `rs_…` Shortcut keys
-// are still accepted for { day, steps } bodies (see LEGACY below). Remove that branch then.
 
 const inDeno = typeof Deno !== 'undefined';
 const SUPABASE_URL = inDeno ? Deno.env.get('SUPABASE_URL') ?? '' : '';
@@ -30,7 +28,6 @@ export const MAX_BODY_BYTES = 16 * 1024;
 const MAX_DAYS = 3;
 const MAX_DAILY_TOTALS = 60; // a backfill carries one entry per day of its window
 const TOKEN_RE = /^bearer ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/i;
-const LEGACY_KEY_RE = /^bearer (rs_[A-Za-z0-9_-]{43})$/i;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export type Day = { day: string; steps: number };
@@ -96,9 +93,17 @@ export function parseBody(body: unknown, todayUtc: string): Parsed {
     return parseLifeDashboard(body, todayUtc);
   }
 
+  // Generic format (iPhone Shortcut and others): strict. A day outside the database's window
+  // (UTC today - 3 .. today + 1) rejects the request, so the sender sees the error.
+  const from = addDays(todayUtc, -3);
+  const to = addDays(todayUtc, 1);
+  const inWindow = (day: string) => day >= from && day <= to;
+
   // Generic: one day.
   if ('day' in body || 'steps' in body) {
-    return isRealDate(body.day) && isSteps(body.steps) ? { days: [{ day: body.day, steps: body.steps }] } : null;
+    return isRealDate(body.day) && inWindow(body.day) && isSteps(body.steps)
+      ? { days: [{ day: body.day, steps: body.steps }] }
+      : null;
   }
 
   // Generic: several days.
@@ -107,7 +112,7 @@ export function parseBody(body: unknown, todayUtc: string): Parsed {
     const seen = new Set<string>();
     const days: Day[] = [];
     for (const entry of body.days) {
-      if (!isObject(entry) || !isRealDate(entry.day) || !isSteps(entry.steps) || seen.has(entry.day)) return null;
+      if (!isObject(entry) || !isRealDate(entry.day) || !inWindow(entry.day) || !isSteps(entry.steps) || seen.has(entry.day)) return null;
       seen.add(entry.day);
       days.push({ day: entry.day, steps: entry.steps });
     }
@@ -184,8 +189,7 @@ async function handle(req: Request): Promise<Response> {
 
   const auth = req.headers.get('Authorization') ?? '';
   const token = TOKEN_RE.exec(auth);
-  const legacy = token ? null : LEGACY_KEY_RE.exec(auth);
-  if (!token && !legacy) return unauthorized();
+  if (!token) return unauthorized();
 
   const type = (req.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase();
   if (type !== 'application/json') return json({ error: 'unsupported_media_type' }, 415);
@@ -206,22 +210,7 @@ async function handle(req: Request): Promise<Response> {
   }
   const todayUtc = new Date().toISOString().slice(0, 10);
 
-  // LEGACY: old Shortcut keys (`rs_…`), { day, steps } only. Remove with the clean-up migration.
-  if (legacy) {
-    const parsed = isObject(body) && 'day' in body ? parseBody(body, todayUtc) : null;
-    if (!parsed) return json({ error: 'invalid' }, 400);
-    const result = await rpc('ingest_shortcut_steps', {
-      p_key_hash: await sha256Hex(legacy[1]),
-      p_day: parsed.days[0].day,
-      p_steps: parsed.days[0].steps,
-    });
-    if (result === 'ok') return json({ ok: true, days: 1 }, 200);
-    if (result === 'unknown_key') return unauthorized();
-    if (result === 'rate_limited') return json({ error: 'rate_limited' }, 429);
-    return json({ error: 'invalid' }, 400);
-  }
-
-  const tokenId = token![1].toLowerCase();
+  const tokenId = token[1].toLowerCase();
   const parsed = parseBody(body, todayUtc);
   if (!parsed) {
     log('invalid_body', tokenId);
@@ -231,7 +220,7 @@ async function handle(req: Request): Promise<Response> {
   // Also called with no days: that still checks the token and counts towards the rate limit.
   const result = await rpc('record_ingest', {
     p_token_id: tokenId,
-    p_secret_hash: await sha256Hex(token![2]),
+    p_secret_hash: await sha256Hex(token[2]),
     p_days: parsed.days,
   });
   log(typeof result === 'string' ? result : 'unexpected', tokenId);
