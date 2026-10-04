@@ -1,0 +1,189 @@
+Read CLAUDE.md in the project root and follow it at all times. If anything in this prompt conflicts with CLAUDE.md, STOP and ask me instead of working around it. Do not run git push or git commit; I will do that myself.
+
+CONTEXT
+runsesh Phase 1 (UI shell with mock data) is finished. Phase 2 adds real accounts, a Supabase backend, a validated steps data path, and (in a separate gated Part B) a token-protected endpoint that receives Android steps from a Health Connect webhook app. The web front end stays on GitHub Pages; Supabase provides Auth and Postgres (and, from Part B, one Edge Function) and does not host the website.
+
+This prompt has two parts:
+- PART A: backend, accounts, profile, steps storage, manual step entry, privacy page, and making the web code ready to run inside a native Android shell.
+- PART B: Android steps through a Health Connect webhook app and a token-protected Supabase Edge Function. Do NOT start Part B until I write exactly: "start Part B".
+
+DECISIONS ALREADY MADE (from research, do not revisit without telling me)
+1. Android steps come from Health Connect, which only a native Android app can read. We will NOT build our own Android app for now (my PC has too little disk space for Android Studio). Instead, Android users install an existing open-source community app that reads Health Connect and POSTs daily step totals to a token-protected Supabase Edge Function that we build in Part B. I choose and test the app; do not assume its payload format.
+2. Not used: the Google Health API (cloud REST, restricted scopes needing a security review, currently not onboarding new projects, covers Fitbit/Pixel Watch data only); the Google Fit REST API (being shut down at the end of 2026); third-party aggregator SDKs; a Trusted Web Activity (it has no native bridge); our own native Android app, Capacitor or a Kotlin WebView shell (possible later, but they need Android Studio or a cloud build pipeline).
+3. iPhone steps (Apple Shortcut sending steps to a Supabase Edge Function) are a later phase. Do not build them now, but keep the database ready: the steps table already allows source = 'shortcut'.
+4. All step values are self-reported by the user's device and can be faked. Server-side limits only stop casual abuse. Document this in docs/security-notes.md.
+
+STEP 0: PLAN FIRST (Part A only)
+Read the existing code, docs/avatar-schema.md and CLAUDE.md. Then give me a short plan listing: tables and columns, every RLS policy in plain words, every trigger or constraint, the files you will add or change, the exact CSP change, and the manual steps I must do in the Supabase dashboard. Wait for my approval before writing code.
+
+PART A: SCOPE (build only this)
+
+1. SUPABASE CLIENT
+- Add the browser build of @supabase/supabase-js pinned to an exact version and vendored in /vendor/. Download it with npm into a temporary folder, copy only the browser build into /vendor/, and record the version and SHA-256 in vendor/README.md. No CDN, no import from a URL.
+- js/config.js holds two placeholders: PASTE_PROJECT_URL and PASTE_PUBLISHABLE_KEY. I will fill them in. Only the publishable (anon) key may ever appear in the code. Never ask me for the service_role or secret key, and never put one anywhere in the repo.
+- js/supabaseClient.js creates the client with the PKCE auth flow.
+- Update the CSP connect-src to exactly my Supabase project origin and nothing else, and tell me what you changed.
+
+2. DATABASE (SQL files in supabase/migrations/, each named with a 14-digit UTC timestamp prefix such as 20261003120000_create_profiles.sql, one concern per file, listed in the order they must run. I will apply them by hand in the Supabase SQL editor. Do NOT run supabase init, do NOT create supabase/config.toml, and do NOT add any GitHub Action or script that deploys to Supabase.)
+a) Table profiles: id uuid primary key references auth.users(id) on delete cascade, display_name text, avatar jsonb, timezone text not null default 'UTC', created_at, updated_at.
+   - Constraints: display_name trimmed, length 2 to 30; timezone length 1 to 64; avatar must match docs/avatar-schema.md exactly (only allowed keys, color matches ^#[0-9A-Fa-f]{6}$, part IDs within allowed values) and be under 2 KB. Enforce in the database, not only in the browser.
+   - RLS enabled. Revoke all privileges from anon. Grant select and update to authenticated only. Policies: a user can select and update only their own row (USING and WITH CHECK on auth.uid() = id). No client insert, no client delete.
+   - Trigger on auth.users creates the profile row at signup. If it uses SECURITY DEFINER, set search_path to empty and fully qualify every object name, and explain it in a comment. Add an updated_at trigger.
+b) Table daily_steps: user_id uuid references auth.users(id) on delete cascade, day date, steps integer, source text, updated_at timestamptz default now(), primary key (user_id, day).
+   - Checks: steps between 0 and 100000; source in ('manual','health_connect','shortcut').
+   - A BEFORE INSERT OR UPDATE trigger rejects a day older than 3 days before today or more than 1 day after today (UTC), and sets updated_at. Set search_path to empty and fully qualify names.
+   - RLS enabled. Revoke all from anon. Grant select, insert and update to authenticated. Policies: select own rows; insert own rows (WITH CHECK auth.uid() = user_id); update own rows (USING and WITH CHECK). No delete policy. Leave a comment that Phase 3 will extend select to members of the same party.
+c) For any other table you think is needed, ask me first. Default deny everywhere.
+
+3. AUTH FLOWS
+- Sign up (email, password, display name), email confirmation required, sign in, sign out, "Sign out on all devices" (global scope), forgot password, and set-new-password screen.
+- Redirects: GitHub Pages has no server-side routing, so use hash routing or a dedicated static callback page. Validate any redirect or "next" value against an allowlist of internal paths. Email links open in the phone's browser on the website, not in the Android app; show a message saying "After confirming, return to the app and log in".
+- Passwords: client-side rules mirror CLAUDE.md (minimum 15 characters while there is no MFA, accept at least 64, allow paste and password managers, no composition rules, no hints or security questions). Tell me to set the same minimum in the dashboard.
+- No account enumeration: sign-up, login and forgot-password show the same generic messages whether or not the email exists.
+- Disable the submit button while a request is pending (cosmetic only; real rate limits are in the dashboard).
+- On SIGNED_OUT: clear service worker caches, IndexedDB and in-memory state as CLAUDE.md requires. Do not copy tokens anywhere; use the SDK's default session storage.
+- A route guard shows only login/sign-up to logged-out users. It is for usability only; RLS is the real protection; say so in a comment.
+- Account screen: real display name and email, edit display name, Change password (Auth API), Log out, Log out of all devices. Never show or hint at the password.
+- Set profiles.timezone from the browser (Intl.DateTimeFormat().resolvedOptions().timeZone) at signup, validated against a simple pattern.
+- MFA (TOTP): plan it. Build enrol, verify and remove only after everything else works and I confirm.
+
+4. AVATAR PERSISTENCE
+- On login, load the avatar from profiles and show it everywhere. When the user saves in the avatar editor, validate in the browser and update their own profile row. If the database rejects it, show a generic error and keep the previous avatar.
+
+5. STEPS DATA PATH AND MANUAL ENTRY
+- Define a StepsSource interface in js/steps/: id, isAvailable(), connect(), disconnect(), and fetchDays(fromDay, toDay) returning [{day, steps}]. Implement one source now: "manual".
+- A sync module takes values from a StepsSource, validates them (integer, 0 to 100000, day in the allowed window, otherwise discard and tell the user), and upserts into daily_steps for the logged-in user with the correct source. Never trust values blindly, even from our own sources.
+- Implement SupabaseStepsProvider (the Phase 1 StepsProvider interface) for the logged-in user's own steps. Other party members stay mock until Phase 3 and must stay clearly labelled as mock.
+- Health connect screen: the "Manual entry" card now works (enter today's steps, saved with source 'manual'; show today and the last 7 days of my own history). The Apple Shortcut card stays "coming later". The Android card says the Android app is required and links to a placeholder section (Part B adds the real flow).
+- Write docs/security-notes.md explaining plainly that steps are self-reported and can be edited or faked, what the server limits do and do not prevent, and what would be needed to trust them more.
+
+6. PRIVACY PAGE
+- Create privacy.html as a static page (same CSP, no scripts needed) linked from the sign-up screen, the Account screen and the Health connect screen. It must be reachable at a public https URL, because Health Connect requires one in Part B.
+- Draft content, written in plain language: data collected (email, display name, avatar, daily step totals; on Android, steps are read from Health Connect only after the user grants permission and only daily totals are sent to the server); no selling or sharing; purpose (rankings among party members); storage with Supabase; retention until account deletion; how to request access or deletion; contact placeholder.
+- Mark every unfinished field as TODO. Add a visible note that this is a draft and I must review it and fill in my contact details, and tell me you are not a lawyer. Plan an account and data deletion path (an Edge Function using Supabase's own function secrets, never a key I paste), but do not build it until I approve.
+
+7. WEB CODE READY FOR A NATIVE SHELL
+- The Android app will bundle these same files locally and run them from an https://localhost-style origin. Therefore: relative paths only, hash routing only, no use of location.pathname for logic, no absolute links to the GitHub Pages origin in app code.
+- Create js/platform.js exporting isNativeApp() (true only when running inside the native shell, detected through the Capacitor global if present). Do not register the service worker when isNativeApp() is true.
+- Everything else stays identical on web and native.
+
+8. ERRORS, LOGGING, SERVICE WORKER
+- Generic user-facing messages. No tokens, emails, step data or personal data in console logs.
+- Bump the service worker cache version. Confirm calls to Supabase are never cached.
+
+9. TESTS (docs/security-tests.md: manual steps plus browser-console snippets using the publishable key and two test accounts)
+- User A cannot read or update user B's profile or daily_steps by calling the REST API directly with A's session.
+- A logged-out request (anon key only) to profiles and daily_steps is denied.
+- Invalid avatar JSON (extra key, bad color, oversized) is rejected by the database.
+- display_name and timezone limits are enforced by the database.
+- daily_steps rejects: negative steps, steps above 100000, an unknown source, a day older than 3 days, a day in the far future, and a row with someone else's user_id.
+- Sign-up, login and reset responses are identical for existing and non-existing emails.
+- After logout, caches and local data are empty and API calls fail.
+- No CSP violations in the console during normal use.
+- Search the built files for secrets, "service_role", and the words "secret" and "password" and report what you find.
+
+PART A: DO NOT BUILD YET
+Parties, invites, photo upload, the Apple Shortcut ingestion function, competitions, rewards, the Capacitor project, the Android project, any health plugin, MFA.
+
+PART A: WHEN YOU FINISH
+1. End with the Security Check from CLAUDE.md and list anything you could not verify.
+2. Print this manual checklist for me, because you cannot see the Supabase dashboard:
+   - Create the project and store the database password in a password manager.
+   - Run the migrations in order in the SQL editor.
+   - Authentication settings: Site URL set to the exact GitHub Pages URL; Redirect URLs set to the exact URLs I need (no wildcards); email confirmation on; minimum password length 15; leaked-password protection on if my plan offers it; rate limits reviewed; unused login providers off.
+   - Table Editor / Security Advisor: RLS shows as enabled on every table, with no warnings.
+   - The service_role key is not in the repo, in js/config.js, or on this machine.
+   - Review privacy.html and fill in every TODO.
+   - Free plan note: the project pauses after 7 days without activity and must be restored from the dashboard.
+3. STOP. Do not start Part B. Wait for me to write "start Part B".
+
+=====================================================================
+PART B (ONLY AFTER I WRITE "start Part B"): ANDROID STEPS VIA A HEALTH CONNECT WEBHOOK APP
+=====================================================================
+
+GOAL
+Android users get their steps into runsesh automatically without us building a native app. They install an existing open-source community app that reads Health Connect and sends their daily step totals by HTTPS POST to a Supabase Edge Function that we build here. Each user has a personal secret token. We build: the token system, the ingestion endpoint, the "Connect my Android phone" screen in the PWA, the user guide, and the tests.
+
+CONSTRAINTS
+- My PC has very little free disk space. Do NOT install, or ask me to install, heavy tools (Android Studio, Android SDK, Docker, emulators, large toolchains). If any tool is needed (for example a CLI), tell me its size first and ask. Test the endpoint with curl against the deployed function.
+- Part A (everything above, including all iPhone and PWA work) is finished and must not be changed, except where this part explicitly says so. Part A item 7 (native-shell readiness: js/platform.js and the service worker rule) is not used by this design: leave it as it is.
+- Do NOT build anything for the iPhone Shortcut now. But design the endpoint and the token table so the later iPhone Shortcut phase can reuse them without changes (see the "generic format" and the platform column below).
+
+ACCEPTED TRADE-OFFS (write them into docs/security-notes.md)
+1. Each Android user installs a third-party app that gets Health Connect access. Neither of us controls it. Reduce the risk: it must be open source with recent releases; the user grants only the steps permission; only the steps data type is enabled for the webhook; pin one specific release and publish its version (and checksum, if the project provides one) in the user guide.
+2. The endpoint must run with JWT verification OFF, because phone apps have no login session. The personal token is the ONLY gate, so the hardening below is mandatory.
+3. Step values are self-reported and can be faked (see Decision 4).
+4. Background sync depends on the third-party app and on Android's battery management. Gaps are possible; say so in the user guide.
+
+FACTS (verify against the current official docs before relying on them, and tell me if something differs)
+- Supabase Edge Functions run on Deno with TypeScript. By default they require a valid user JWT; this can be turned off per function. Check how to do that in the dashboard editor (no config.toml and no CLI deploy: see the Part A item 2 rule) and what the built-in environment variables are called in the current Supabase version. NEVER ask me to paste any key; use only the function's built-in environment.
+- The function URL looks like https://<project-ref>.supabase.co/functions/v1/<name>. It has the same origin as the project URL, so the PWA's CSP connect-src needs no change.
+- Candidate apps (not verified, not endorsed): HC Webhook (github.com/mcnaveen/health-connect-webhook), healthconnect-export (github.com/kas-cor/healthconnect-export), Life Dashboard Companion (github.com/owen282000/life-dashboard-companion-app). Criteria: open source; recent releases; can send ONLY steps; can send an Authorization header or an HMAC signature (a secret in the URL is a weaker fallback and needs my explicit approval); sends a daily step total reliably; has a test feature that sends mock data.
+- Health Connect notes the user guide must include: on Android 14 and higher the phone counts steps natively only after some app has been granted the steps permission (steps count from the moment of connecting); on Android 13 and lower the user needs the Health Connect app and another app that writes steps into it.
+
+STEP B0: PLAN (no code yet)
+Give me a short plan: the tables, columns, grants and policies in plain words; the function design; the exact files you will add or change; what I must do in the dashboard; and the decisions you need from me (see B1). Wait for my approval.
+
+STEP B1: CHOOSE THE APP AND GET A REAL SAMPLE (stop and wait for me)
+1. Read the README of each candidate from its official repository and give me a short comparison against the criteria, flagging anything unclear. Only ever point me to the official repository releases page.
+2. I will choose and install an app on my phone, enable only steps, use its test feature to send mock data to a throwaway place (not our endpoint), then paste the sample payload and tell you which authentication options the app offers.
+3. Build the parser ONLY from the real sample. Never guess formats. If the sample is ambiguous (for example cumulative versus per-interval steps, or timestamps without a timezone), ask me.
+4. STOP until I paste the sample.
+
+STEP B2: DATABASE (migrations: 14-digit timestamp names, same rules as Part A item 2)
+Table ingest_tokens: id uuid primary key default gen_random_uuid(), user_id uuid references auth.users(id) on delete cascade, platform text check in ('android','ios'), label text check length 1 to 40, secret_hash text not null, created_at timestamptz default now(), last_used_at timestamptz, revoked_at timestamptz, plus fields for a simple per-token rate limit (window start and request count).
+- RLS on. Revoke everything from anon. For authenticated: SELECT only on the columns id, platform, label, created_at, last_used_at, revoked_at (column-level privileges; secret_hash must NOT be readable by clients). No direct insert, update or delete for clients. Policy: users see only their own rows.
+- Token creation and revocation happen only in server-side code: either two SECURITY DEFINER SQL functions with an empty search_path, EXECUTE revoked from public and anon and granted to authenticated only, or an Edge Function that verifies the user's JWT. Recommend one in the plan. Requirements: the secret is generated server-side with a cryptographically secure generator, at least 32 random bytes; it is shown to the client ONCE; only a SHA-256 hash is stored; at most 2 active tokens per user; revoking sets revoked_at; creating a token with platform 'ios' is allowed by the schema but there is no UI for it now.
+- Token format sent by the phone app: "<token id>.<secret>" (the id is the uuid, the secret is base64url).
+- Do not change existing tables or their policies. Writes to daily_steps from the endpoint go through the existing constraints and trigger.
+- After the migration, tell me which verification queries to run (like those used for Part A) and the expected results.
+
+STEP B3: THE INGESTION FUNCTION (supabase/functions/ingest-steps/index.ts)
+The source lives in the repo; I deploy it by pasting it into the dashboard editor. Pin every imported package to an exact version and verify it exists. Use Web Crypto for hashing and constant-time comparison.
+- Accept POST only (405 otherwise). No CORS headers at all. Require Content-Type application/json. Body limit 16 KB (413). Reject everything else with a generic message.
+- Read the token from the Authorization: Bearer header (or the method I approve in B1). Split it, look up the token row by id, reject if missing or revoked, and compare SHA-256(secret) with secret_hash in constant time. Every authentication failure returns the same 401 response body, whatever the reason.
+- Rate limit per token, for example 20 requests per hour (the apps sync at most every 15 minutes); return 429 when exceeded. Update last_used_at on success.
+- Parse the payload with two adapters: (1) the GENERIC format {"day":"YYYY-MM-DD","steps":12345} or {"days":[{"day":"...","steps":...}]}, which the later iPhone Shortcut phase will use; (2) the chosen app's real format from B1. Convert timestamps to the user's local day using profiles.timezone (an IANA name; fall back to UTC if invalid).
+- Validate strictly: at most 3 days per request; each day a real calendar date inside the same window as the daily_steps trigger (3 days back to 1 day ahead); steps an integer from 0 to 100000. If any item is invalid, reject the whole request (400) and write nothing.
+- Write with an upsert into daily_steps for the token owner only. user_id comes from the token row, NEVER from the payload. Source is 'health_connect' for android tokens and 'shortcut' for ios tokens. Use the function's built-in privileged environment only inside the function; nothing privileged leaves it.
+- Response: {"ok":true} on success. Never echo input, error details, stack traces or system information.
+- Logging: only the token id and an outcome code. Never log payloads, secrets, emails or step values.
+
+STEP B4: PWA CHANGES (Health connect screen only; separate small commits)
+- Add INGEST_URL to js/config.js, derived from the existing project URL (https://<ref>.supabase.co/functions/v1/ingest-steps).
+- Replace the Android placeholder card with a working flow for logged-in users. "Connect my Android phone" asks for an optional label, creates a token, and shows ONCE the webhook URL and the token with copy buttons and a clear warning that the token will not be shown again. Then show step-by-step setup instructions that name the chosen app, the exact fields to fill in, the interval to choose (15 to 60 minutes), only the steps permission, and a reminder to switch off battery optimisation for that app. Keep the app name, repository URL and pinned version in one constants module so they can be changed in one place.
+- Show my tokens (label, platform, created, last used, active or revoked) with a Revoke button, and the last time steps arrived (use daily_steps updated_at and source).
+- Token handling in the browser: render with textContent; never write the token to localStorage, sessionStorage, IndexedDB, the URL, caches or the console; remove it from the page after I confirm I saved it, when I leave the screen, and on logout.
+- All user-visible strings go through the strings module. No new CSP origins; if you think one is needed, stop and tell me.
+- The iPhone Shortcut card stays exactly as it is now ("coming later").
+
+STEP B5: DOCS AND PRIVACY
+- docs/android-setup.md: a plain-language guide for my friends: install from the official releases page of the chosen app, grant only steps, add the webhook URL and the Authorization header, choose the interval, test, battery optimisation, what to do if no data arrives, how to revoke a token, a note that a third-party app is involved, and the Health Connect notes for Android 14+ versus older versions.
+- Update privacy.html so it is accurate for this design: on Android, a third-party app chosen by the user reads Health Connect under its own policy; runsesh receives only daily step totals sent with a personal token; tokens are stored only as hashes and can be revoked. Mark anything unfinished as TODO and remind me it is a draft and not legal advice.
+- Update docs/security-notes.md with the accepted trade-offs above.
+
+STEP B6: TESTS (add to docs/security-tests.md; give me exact curl commands for Windows cmd using a FAKE token placeholder)
+- No header, wrong token, wrong id, revoked token and malformed token all return the identical 401 body and write nothing.
+- GET, wrong content type, a body over 16 KB and invalid JSON are rejected with the right status and no write.
+- Invalid payloads: negative steps, over 100000, non-integer, bad date, date outside the window, more than 3 days, a mixed valid and invalid batch (nothing is written), and a user_id supplied in the payload (ignored).
+- Rate limit: the 21st request within an hour returns 429.
+- A valid token writes only for its own user. User A cannot read or write user B's tokens or steps. The secret_hash column cannot be read by any client (both select * and the explicit column fail). Clients cannot insert, update or delete tokens directly. anon has no access.
+- The token is shown once and cannot be retrieved afterwards; creating a third active token fails; revoking takes effect immediately.
+- The Edge Function logs contain no payloads, secrets or step values.
+- Real-world test on my Android phone with the chosen app: a sync arrives; today's total matches the Health Connect app; the screen shows the last-received time.
+- Check the Security Advisor after the new migration and function: no new warnings (especially function execute privileges).
+
+STEP B7: DEPLOY CHECKLIST (print it for me when everything else is done)
+- Run the new migration by hand in the SQL editor and verify it.
+- Create the Edge Function ingest-steps in the dashboard editor, paste the code from the repo, and turn JWT verification OFF for this function only (leave it ON for any other function, for example a token-creation function).
+- Do not paste any key anywhere. Check the function logs after the first test.
+- Check the free-plan limits for Edge Functions on the Supabase pricing page.
+- Merge, wait for GitHub Pages to deploy, hard refresh or reopen the installed app, then run the real-world test.
+
+PART B: DO NOT BUILD
+Any native Android code, Capacitor, a WebView shell, Android Studio files, an APK or a cloud build pipeline, the iPhone Shortcut flow or its instructions, our own background sync, elevation or floors support, the Google Health API, Google Fit REST, aggregator SDKs, and a token in the URL unless I approve it in B1.
+
+PART B: WHEN YOU FINISH
+1. Give me a changelog of what was added and what was left alone.
+2. End with the Security Check from CLAUDE.md and list anything you could not verify, especially anything that depends on the chosen app, my phone, or the Supabase dashboard.
+3. Remind me: tokens are secrets (treat them like passwords), the endpoint is public so the token checks are its only protection, and the third-party app is outside our control.
