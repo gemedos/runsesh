@@ -1,134 +1,157 @@
-// Avatar parts: a faceless "stomper" seen from behind (three-quarter back view), mid high-knee
-// stomp. Small round head sitting straight on the collar, boxy oversized clothes, flat fills
-// with a thin dark edge. All shapes are hard-coded data: [tagName, attributes].
+// Avatar parts: the "mannequin runner" (docs/design.md, section 7). A faceless studio mannequin
+// in side profile, facing right, mid-stride: near leg planted, far leg trailing, arms opposite.
+// All shapes are hard-coded data: [tagName, attributes, kind?]. kind 'surf' marks a surface
+// that receives the studio lighting overlay in avatar.js; lines and details have no kind.
 // Attribute values that start with '@' are resolved at build time:
-//   '@skin' -> the validated skin hex color, '@hair' -> the hair color for a whitelisted id.
+//   '@skin' -> the validated body colour, '@hair' -> the hair colour for a whitelisted id.
+// Each part is split into drawing slots so it can sit at the right depth:
+//   back (behind everything), far (far-side limbs), main (torso), near (near-side limbs),
+//   head (on the head). avatar.js decides the order.
 // The keys of each map below ARE the whitelist of part IDs (see docs/avatar-schema.md).
-// Display labels live in js/strings.js. Concept notes: docs/design.md, "Avatar".
+// Display labels live in js/strings.js.
 
-const EDGE = '#1b1820'; // thin dark edge
-const EDGE_W = 1.8;
+const EDGE = '#15151b';
+const EDGE_OPACITY = 0.55;
+const EDGE_W = 1.2;
 const W = '#ffffff';
 
-// --- Skeleton (viewBox units) ----------------------------------------------------
-// Head
-const HEAD = { cx: 106, cy: 40, r: 18 };
-// Arms: shoulder -> elbow -> wrist
-const ARM_BACK = 'M76 70 L52 84 L42 98';
-const ARM_FRONT = 'M134 68 L157 81 L165 97';
-const UPPER_BACK = 'M76 70 L56 82';
-const UPPER_FRONT = 'M134 68 L153 79';
-const SLEEVE_BACK = 'M76 70 L52 84 L45 94';
-const SLEEVE_FRONT = 'M134 68 L157 81 L162 91';
-const HAND_BACK = { cx: 40, cy: 101 };
-const HAND_FRONT = { cx: 166, cy: 100 };
-// Legs: hip -> knee -> ankle. Front (raised) thigh is almost horizontal.
-const LEG_BACK = 'M94 128 L92 186 L90 230';
-const LEG_FRONT = 'M120 126 L158 136 L154 182';
-const THIGH_BACK = 'M94 128 L92.5 172';
-const THIGH_FRONT = 'M120 126 L152 134.4';
-const PANTS_BACK = 'M94 128 L92 186 L90.8 208';
-const PANTS_FRONT = 'M120 126 L158 136 L156 160';
-const SOCK_BACK = 'M90.9 206 L90 230';
-const SOCK_FRONT = 'M156.2 158 L154 182';
-const ANKLE_BACK = { x: 90, y: 230 };
-const ANKLE_FRONT = { x: 154, y: 182 };
-// Torso
-const TORSO = 'M70 70 C72 60 88 56 106 56 C124 56 138 60 140 70 L141 124 C124 132 86 132 70 124 Z';
-const SWEATER = 'M66 70 C68 58 86 54 106 54 C126 54 142 58 144 70 L145 122 C126 131 84 131 66 122 Z';
-const HEM = 'M66 113 C84 122 126 122 145 113 L145 124 C126 133 84 133 66 124 Z';
-const VEST = 'M78 62 L92 57 C96 64 116 64 120 56 L132 60 C138 84 141 104 142 124 C124 132 86 132 69 124 C70 104 72 84 78 62 Z';
-const HIPS = 'M74 116 L138 114 L139 136 C122 142 90 142 75 138 Z';
+// --- Skeleton (viewBox units, frame 26 4 158 250) -------------------------------------
+const P = Object.freeze({
+  // Near leg: planted under the body, soft knee, foot flat.
+  nearHip: [101, 126], nearKnee: [114, 176], nearAnkle: [108, 224],
+  // Far leg: trailing behind, foot pointing down and back off the toes.
+  farHip: [97, 124], farKnee: [82, 174], farAnkle: [54, 214],
+  // Far arm: forward, elbow ~90 degrees, fist at chest height.
+  farShoulder: [106, 62], farElbow: [116, 96], farWrist: [138, 78], farFist: [141, 76],
+  // Near arm: swung back, forearm hanging, hand at hip height.
+  nearShoulder: [101, 62], nearElbow: [81, 90], nearWrist: [85, 116], nearFist: [85.5, 120.5],
+  neckBase: [104, 57], neckTop: [109, 41],
+});
+const LIMB = Object.freeze({ thigh: 19, calf: 13, upperArm: 11, forearm: 9, neck: 10 });
 
-function limb(d, color, width) {
-  const base = { d, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+/** Head: an egg tilted forward with the lean. Hair and head accessories are drawn in its frame. */
+const HEAD = Object.freeze({ cx: 114, cy: 29, rx: 11.5, ry: 14.5 });
+const HEAD_T = `rotate(14 ${HEAD.cx} ${HEAD.cy})`;
+/** Feet are drawn in a local frame: ankle at 0,0, toes towards +x, sole towards +y. */
+const FOOT_NEAR_T = `translate(${P.nearAnkle[0]} ${P.nearAnkle[1]}) scale(0.88)`;
+const FOOT_FAR_T = `translate(${P.farAnkle[0]} ${P.farAnkle[1]}) rotate(60) scale(0.88)`;
+
+const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+const pt = ([x, y]) => `${Math.round(x * 10) / 10} ${Math.round(y * 10) / 10}`;
+const seg = (...points) => `M${points.map(pt).join(' L')}`;
+
+// --- Drawing helpers -------------------------------------------------------------------
+
+/** Filled surface with the thin translucent edge. */
+function shape(tag, attrs, fill) {
+  return [tag, { ...attrs, fill, stroke: EDGE, 'stroke-opacity': EDGE_OPACITY, 'stroke-width': EDGE_W, 'stroke-linejoin': 'round' }, 'surf'];
+}
+const path = (d, fill, transform) => shape('path', transform ? { d, transform } : { d }, fill);
+const circle = (cx, cy, r, fill, transform) => shape('circle', transform ? { cx, cy, r, transform } : { cx, cy, r }, fill);
+/** Detail line (seam, stripe, stitch). No lighting. */
+const line = (d, color, width = 1.4, transform, opacity) => ['path', {
+  d, fill: 'none', stroke: color, 'stroke-width': width, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+  ...(transform ? { transform } : {}), ...(opacity ? { 'stroke-opacity': opacity } : {}),
+}];
+
+/**
+ * A tapered tube along a chain of segments: [[d, width], ...]. All edges first, then all colours,
+ * so the joints stay clean; then a soft highlight along the upper-left of each segment.
+ * cap 'butt' cuts the ends straight (hems of shorts and short sleeves).
+ */
+function tube(segments, color, highlight = true, cap = 'round') {
+  const base = { fill: 'none', 'stroke-linecap': cap, 'stroke-linejoin': 'round' };
   return [
-    ['path', { ...base, stroke: EDGE, 'stroke-width': width + EDGE_W * 2 }],
-    ['path', { ...base, stroke: color, 'stroke-width': width }],
+    ...segments.map(([d, w]) => ['path', { ...base, d, stroke: EDGE, 'stroke-opacity': EDGE_OPACITY, 'stroke-width': w + EDGE_W * 2 }]),
+    ...segments.map(([d, w]) => ['path', { ...base, d, stroke: color, 'stroke-width': w }, 'surf']),
+    ...(highlight ? segments.map(([d, w]) => ['path', { ...base, d, stroke: W, 'stroke-opacity': 0.14, 'stroke-width': Math.max(1.5, w * 0.34), transform: 'translate(-1.1 -1.3)' }]) : []),
   ];
 }
 
-function shape(tag, attrs, fill) {
-  return [tag, { ...attrs, fill, stroke: EDGE, 'stroke-width': EDGE_W, 'stroke-linejoin': 'round' }];
-}
+// Limb chains (start → joint → end) with an optional start/end fraction, for sleeves and legs.
+const nearLegSegs = (w1 = LIMB.thigh, w2 = LIMB.calf, until = 1) => until <= 0.5
+  ? [[seg(P.nearHip, lerp(P.nearHip, P.nearKnee, until * 2)), w1]]
+  : [[seg(P.nearHip, P.nearKnee), w1], [seg(P.nearKnee, lerp(P.nearKnee, P.nearAnkle, (until - 0.5) * 2)), w2]];
+const farLegSegs = (w1 = LIMB.thigh, w2 = LIMB.calf, until = 1) => until <= 0.5
+  ? [[seg(P.farHip, lerp(P.farHip, P.farKnee, until * 2)), w1]]
+  : [[seg(P.farHip, P.farKnee), w1], [seg(P.farKnee, lerp(P.farKnee, P.farAnkle, (until - 0.5) * 2)), w2]];
+const nearArmSegs = (w1 = LIMB.upperArm, w2 = LIMB.forearm, until = 1) => until <= 0.5
+  ? [[seg(P.nearShoulder, lerp(P.nearShoulder, P.nearElbow, until * 2)), w1]]
+  : [[seg(P.nearShoulder, P.nearElbow), w1], [seg(P.nearElbow, lerp(P.nearElbow, P.nearWrist, (until - 0.5) * 2)), w2]];
+const farArmSegs = (w1 = LIMB.upperArm, w2 = LIMB.forearm, until = 1) => until <= 0.5
+  ? [[seg(P.farShoulder, lerp(P.farShoulder, P.farElbow, until * 2)), w1]]
+  : [[seg(P.farShoulder, P.farElbow), w1], [seg(P.farElbow, lerp(P.farElbow, P.farWrist, (until - 0.5) * 2)), w2]];
 
-const path = (d, fill) => shape('path', { d }, fill);
-const line = (d, color, width = 2) => ['path', { d, fill: 'none', stroke: color, 'stroke-width': width, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }];
-const circle = (cx, cy, r, fill) => shape('circle', { cx, cy, r }, fill);
+// --- Feet (local frame) ---------------------------------------------------------------
+const FOOT = 'M-6 -3 C-10 1 -9.5 9 -3.5 9 L17 9 C22 9 23 4.5 18.5 2.5 L6.5 -2.5 Z';
+const SHOE = 'M-7.5 -5 C-11.5 1 -11.5 10.5 -5 10.5 L19.5 10.5 C25 10.5 25.5 4 20 2 L9 -4 C5 -6 -2 -7 -7.5 -5 Z';
+const SHOE_SOLE = 'M-10 8.6 L23.5 8.6';
+const SHOE_STRIPE = 'M-3 4 L6 -0.5 M1 6 L11 1';
 
-// --- Feet -------------------------------------------------------------------------
-/** Foot (or sock-covered foot) shape, toes pointing right, ankle at (x, y). */
-const footShape = ({ x, y }) => `M${x - 8} ${y - 2} C${x - 10} ${y + 6} ${x - 7} ${y + 10} ${x} ${y + 10} L${x + 15} ${y + 10} C${x + 19} ${y + 9} ${x + 17} ${y + 3} ${x + 10} ${y + 1} L${x + 5} ${y - 3} Z`;
-/** Chunky slide sole. */
-const soleShape = ({ x, y }) => `M${x - 12} ${y + 8} C${x - 13} ${y + 14} ${x - 9} ${y + 15} ${x - 4} ${y + 15} L${x + 18} ${y + 15} C${x + 24} ${y + 15} ${x + 24} ${y + 8} ${x + 18} ${y + 8} Z`;
-/** Slide strap over the foot. */
-const strapShape = ({ x, y }) => `M${x - 8} ${y + 9} C${x - 6} ${y + 1} ${x + 8} ${y} ${x + 11} ${y + 9} Z`;
-/** Closed sneaker. */
-const sneakerShape = ({ x, y }) => `M${x - 9} ${y - 4} C${x - 12} ${y + 8} ${x - 9} ${y + 14} ${x - 2} ${y + 14} L${x + 18} ${y + 14} C${x + 24} ${y + 14} ${x + 23} ${y + 5} ${x + 13} ${y + 3} L${x + 7} ${y - 4} Z`;
+// --- Torso and garments (world frame) -------------------------------------------------
+const TORSO = 'M99 50 C92 54 88 63 88 76 C88 90 93 99 92 108 C88 116 86 125 88 134 C95 140 106 141 113 137 C115 128 114 117 112 106 C113 96 119 89 119 76 C119 64 115 55 111 50 Z';
+const TOP_BODY = 'M97 47 C89 52 85 62 85 76 C85 90 90 99 89 109 C87 117 86 125 87 133 C95 138 106 139 115 135 C116 126 116 116 114 106 C115 96 122 89 122 76 C122 63 118 54 113 47 C108 52 102 52 97 47 Z';
+const TANK_BODY = 'M99 51 C95 59 89 64 88 76 C87 90 91 99 90 109 C88 117 87 125 88 133 C95 138 106 139 115 135 C116 126 116 116 114 106 C115 96 121 89 121 77 C121 67 117 59 112 51 C108 56 103 56 99 51 Z';
+const TOP_HEM = 'M87 127 C95 131 106 132 115.5 129 L115 135 C106 139 95 138 87 133 Z';
+const PELVIS = 'M89 111 C96 115 106 115 113 111 C114 118 115 126 114 133 C112 139 108 142 103 143 C96 144 90 142 87 137 C86 128 87 119 89 111 Z';
 
-// ---------------------------------------------------------------------------------
-// Base body (faceless)
-// ---------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------
+// Base body (faceless mannequin)
+// ---------------------------------------------------------------------------------------
 
 export const BODY = Object.freeze({
-  shadow: [['ellipse', { cx: 93, cy: 246, rx: 26, ry: 4, fill: '#000000', opacity: 0.5 }]],
-  legs: [...limb(LEG_BACK, '@skin', 14), ...limb(LEG_FRONT, '@skin', 14)],
-  feet: [path(footShape(ANKLE_BACK), '@skin'), path(footShape(ANKLE_FRONT), '@skin')],
-  arms: [
-    ...limb(ARM_BACK, '@skin', 10), ...limb(ARM_FRONT, '@skin', 10),
-    circle(HAND_BACK.cx, HAND_BACK.cy, 6.5, '@skin'),
-    circle(HAND_FRONT.cx, HAND_FRONT.cy, 6.5, '@skin'),
+  shadow: [
+    ['ellipse', { cx: 113, cy: 235, rx: 21, ry: 3.2, fill: '#000000', opacity: 0.45 }],
+    ['ellipse', { cx: 62, cy: 235, rx: 9, ry: 2.2, fill: '#000000', opacity: 0.3 }],
   ],
-  hips: [path(HIPS, '@skin')],
-  neck: [],
-  torso: [path(TORSO, '@skin')],
-  head: [circle(HEAD.cx, HEAD.cy, HEAD.r, '@skin')],
+  farLeg: [...tube(farLegSegs(), '@skin'), path(FOOT, '@skin', FOOT_FAR_T)],
+  farArm: [...tube(farArmSegs(), '@skin'), circle(P.farFist[0], P.farFist[1], 5.6, '@skin')],
+  torso: [
+    path(TORSO, '@skin'),
+    line('M93 108 C99 111 105 111 110 107', EDGE, 1, undefined, 0.45), // waist seam
+  ],
+  neck: [...tube([[seg(P.neckBase, P.neckTop), LIMB.neck]], '@skin', false), line('M100 54 C103 57 107 57 110 53', EDGE, 1, undefined, 0.4)],
+  nearLeg: [...tube(nearLegSegs(), '@skin'), path(FOOT, '@skin', FOOT_NEAR_T)],
+  head: [shape('ellipse', { cx: HEAD.cx, cy: HEAD.cy, rx: HEAD.rx, ry: HEAD.ry, transform: HEAD_T }, '@skin')],
+  nearArm: [
+    ...tube(nearArmSegs(), '@skin'),
+    circle(P.nearFist[0], P.nearFist[1], 5.6, '@skin'),
+    line('M81 114 L89 114.6', EDGE, 1, undefined, 0.4), // wrist seam
+  ],
 });
 
-// ---------------------------------------------------------------------------------
-// Hair, seen from behind: it covers the top and back of the head.
-// ---------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------
+// Hair, in the head's frame (profile, facing right: back of the head is at x ≈ 102.5).
+// ---------------------------------------------------------------------------------------
 
-const CAP = 'M88 44 C86 30 94 21 106 21 C119 21 126 30 124 42 C119 36 112 34 106 35 C99 35 92 38 88 44 Z';
+const hairPath = (d) => path(d, '@hair', HEAD_T);
+const CAP = 'M101.5 33 C99.5 18 106 12.5 114 12.5 C121.5 12.5 127 18 126.5 25 C120 20.5 112 21 107 25 C104 28 103 31 103.5 36 Z';
 
 export const HAIR = Object.freeze({
   h_none: { back: [], front: [] },
-  h_buzz: { back: [], front: [path('M89 38 C91 26 98 22 106 22 C115 22 122 27 123 37 C117 32 96 31 89 38 Z', '@hair')] },
-  // Shaggy mop with a jagged edge.
-  h_short: {
-    back: [],
-    front: [path('M87 47 C84 31 93 21 106 21 C120 21 127 31 125 45 L121 40 L119 46 L115 39 L111 45 L107 38 L102 44 L98 38 L94 45 L91 40 Z', '@hair')],
-  },
-  h_spiky: {
-    back: [],
-    front: [path('M88 44 L84 30 L93 33 L94 21 L101 28 L106 16 L111 27 L119 20 L119 31 L128 29 L124 42 C118 36 96 36 88 44 Z', '@hair')],
-  },
+  h_buzz: { back: [], front: [hairPath('M102.6 31 C101.5 20 107 14.3 114 14.3 C120 14.3 124 18 125 22 C120 19 114 19 110 22 C106 25 104 28 104.5 33 Z')] },
+  h_short: { back: [], front: [hairPath('M101.5 33 C99.5 19 106 12.5 114 12.5 C121 12.5 126.5 17 127 23 C124 21 121 21.5 119 23 C116 20.5 111 21 108 24 C105.5 27 104.5 31 105 35 Z')] },
+  h_spiky: { back: [], front: [hairPath('M102 33 L97.5 26.5 L103 24 L99.5 16 L107 17.5 L107 9 L113 14 L117.5 7 L119.5 14 L126.5 12 L124.5 19 L128.5 22.5 C122 20 114 21 109 24 C106 27 104.5 30 105 35 Z')] },
   h_long: {
-    back: [path('M87 40 C86 24 96 20 106 20 C117 20 126 25 125 40 L128 76 C116 82 96 82 84 76 Z', '@hair')],
-    front: [path(CAP, '@hair')],
+    back: [path('M103 21 C95 29 94 50 95 72 C99 76 104 76 106.5 71 C104.5 58 105 46 109 37 Z', '@hair')],
+    front: [hairPath(CAP)],
   },
   h_bob: {
-    back: [path('M86 42 C85 25 95 20 106 20 C118 20 127 26 126 42 L127 60 C118 66 94 66 85 60 Z', '@hair')],
-    front: [path(CAP, '@hair')],
+    back: [path('M102 21 C95.5 29 95.5 42 97.5 49 C101.5 52 108 51 110.5 46.5 C108.5 40 108.5 34 110 27 Z', '@hair')],
+    front: [hairPath(CAP)],
   },
   h_ponytail: {
-    back: [path('M89 36 C74 36 68 52 72 70 C76 60 80 52 90 48 Z', '@hair')],
-    front: [path(CAP, '@hair'), circle(89, 41, 3.2, '#e0483a')],
+    back: [path('M104 21 C95 18 84 23 79 36 C82 40 85 39 87 36 C90 31 95 29 101 30 Z', '@hair')],
+    front: [hairPath(CAP), circle(102.5, 25.5, 2.6, '#e0483a', HEAD_T)],
   },
-  h_bun: {
-    back: [circle(99, 20, 9, '@hair')],
-    front: [path(CAP, '@hair')],
-  },
-  // Round cloud of curls.
+  h_bun: { back: [], front: [hairPath(CAP), circle(103, 17.5, 6.5, '@hair', HEAD_T)] },
   h_curly: {
     back: [],
-    front: [[90, 36, 8], [95, 27, 8], [105, 23, 8.5], [115, 26, 8], [122, 34, 7.5], [88, 45, 6.5], [124, 43, 6]]
-      .map(([cx, cy, r]) => circle(cx, cy, r, '@hair')),
+    front: [[105, 27, 6.5], [104, 19, 6.5], [110, 14, 6.5], [117.5, 13, 6], [123.5, 17, 5.5], [101.5, 33, 5]]
+      .map(([cx, cy, r]) => circle(cx, cy, r, '@hair', HEAD_T)),
   },
-  h_mohawk: {
-    back: [],
-    front: [path('M98 24 C99 12 112 9 119 18 L117 26 C113 22 104 22 100 27 Z', '@hair')],
-  },
+  // Crest from the nape over the crown to the forehead.
+  h_mohawk: { back: [], front: [hairPath('M102.7 32 C98.5 22 100.5 11.5 108 7.5 C115 3.8 123.5 6 126.8 12 L124.6 17.3 C121.5 15.3 118 14.5 114 14.5 C107.5 14.5 103.5 19.5 102.7 26 Z')] },
 });
 
 export const HAIR_COLORS = Object.freeze({
@@ -142,222 +165,240 @@ export const HAIR_COLORS = Object.freeze({
   hc_green: { color: '#4caf50' },
 });
 
-// ---------------------------------------------------------------------------------
-// Tops: boxy and oversized, with knit / sewn details
-// ---------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------
+// Tops: fitted sportswear following the tubes a little wider
+// ---------------------------------------------------------------------------------------
 
-const longSleeves = (color, cuff) => [
-  ...limb(SLEEVE_BACK, color, 17), ...limb(SLEEVE_FRONT, color, 17),
-  ...(cuff ? [line('M42 89 L51 97', cuff, 4), line('M156 91 L167 88', cuff, 4)] : []),
-];
-const shortSleeves = (color) => [...limb(UPPER_BACK, color, 20), ...limb(UPPER_FRONT, color, 20)];
-const collarRib = (color) => line('M93 56 C99 62 113 62 119 56', color, 4);
+const SLEEVE_W = [LIMB.upperArm + 5, LIMB.forearm + 4];
+const shortSleeves = (color) => ({
+  far: tube(farArmSegs(SLEEVE_W[0] + 1, SLEEVE_W[1], 0.3), color, false, 'butt'),
+  near: tube(nearArmSegs(SLEEVE_W[0] + 1, SLEEVE_W[1], 0.3), color, false, 'butt'),
+});
+const longSleeves = (color) => ({
+  far: tube(farArmSegs(SLEEVE_W[0], SLEEVE_W[1], 0.94), color),
+  near: tube(nearArmSegs(SLEEVE_W[0], SLEEVE_W[1], 0.94), color),
+});
+const cuff = (arm, color) => {
+  const [elbow, wrist] = arm === 'far' ? [P.farElbow, P.farWrist] : [P.nearElbow, P.nearWrist];
+  return tube([[seg(lerp(elbow, wrist, 0.76), lerp(elbow, wrist, 0.88)), SLEEVE_W[1] + 0.6]], color, false);
+};
 
 export const TOPS = Object.freeze({
-  // Oversized tee with wide short sleeves.
-  t_tee: { parts: [...shortSleeves('#e0483a'), path(SWEATER, '#e0483a'), collarRib('#b8352a')] },
-  t_tank: { parts: [path(VEST, '#2f80ed'), line('M80 116 C96 122 118 122 140 116', '#2568c2', 2)] },
-  // Knit sweater: diamond band, ribbed hem and cuffs (the default look).
+  // Fitted tee with crew neck.
+  t_tee: {
+    ...shortSleeves('#e0483a'),
+    main: [path(TOP_BODY, '#e0483a'), line('M98 48.5 C102 53 108 53 112 48.5', '#b8352a', 2.2)],
+  },
+  // Racer tank: bare shoulders, deep armhole.
+  t_tank: {
+    far: [], near: [],
+    main: [path(TANK_BODY, '#2f80ed'), line('M100 52.5 C103 57 107 57 110 52.5', '#2568c2', 1.8), line('M96 64 C98 76 104 82 111 80', '#2568c2', 1.2)],
+  },
+  // Knit sweater: ribbed hem and cuffs, zigzag band.
   t_jersey: {
-    parts: [
-      ...longSleeves('#8a4fb0', '#6c3a8c'),
-      path(SWEATER, '#8a4fb0'),
-      line('M78 84 L85 92 L92 84 L99 92 L106 84 L113 92 L120 84 L127 92 L134 84', '#6c3a8c'),
-      line('M78 92 L85 84 L92 92 L99 84 L106 92 L113 84 L120 92 L127 84 L134 92', '#6c3a8c'),
-      line('M76 78 C96 82 116 82 136 78', '#6c3a8c', 1.6),
-      path(HEM, '#6c3a8c'),
-      line('M78 117 V127 M88 119 V129 M98 120 V130 M108 120 V130 M118 120 V130 M128 119 V129 M137 117 V127', '#5a2f76', 1.4),
-      collarRib('#6c3a8c'),
+    far: [...longSleeves('#8a4fb0').far, ...cuff('far', '#6c3a8c')],
+    near: [...longSleeves('#8a4fb0').near, ...cuff('near', '#6c3a8c')],
+    main: [
+      path(TOP_BODY, '#8a4fb0'),
+      line('M87 86 L91 81 L95 86 L99 81 L103 86 L107 81 L111 86 L115 81 L119 86', '#6c3a8c', 1.4),
+      line('M87 92 L91 87 L95 92 L99 87 L103 92 L107 87 L111 92 L115 87 L119 92', '#6c3a8c', 1.4),
+      path(TOP_HEM, '#6c3a8c'),
+      line('M92 128 V134 M97 129 V135 M102 129.5 V135.5 M107 129 V135', '#5a2f76', 1),
+      line('M98 48.5 C102 53 108 53 112 48.5', '#6c3a8c', 2.6),
     ],
   },
-  // Hoodie: hood bunched behind the neck, front pocket.
+  // Hoodie: hood resting on the back, front pouch pocket.
   t_hoodie: {
-    parts: [
-      ...longSleeves('#3fae5a', '#2f8a46'),
-      path(SWEATER, '#3fae5a'),
-      path('M86 60 C86 46 126 46 126 60 L118 66 L94 66 Z', '#2f8a46'),
-      path('M84 96 L128 95 L131 113 L81 114 Z', '#36994e'),
-      path(HEM, '#2f8a46'),
+    ...longSleeves('#3fae5a'),
+    main: [
+      path(TOP_BODY, '#3fae5a'),
+      path('M99 47 C92 46 87 52 87 60 C90 64 95 64 99 60 C99 56 101 52 104 50 Z', '#2f8a46'),
+      path('M101 104 L115.5 103 C116 110 116 116 115.5 122 L100 122 C101 115 101.5 110 101 104 Z', '#36994e'),
+      line('M108 50 L109 62 M111 50 L112.5 61', W, 1.1),
+      path(TOP_HEM, '#2f8a46'),
     ],
   },
-  // Button-up shirt with collar and sleeves rolled to the elbow.
+  // Shirt-jacket: collar, front placket, sleeves rolled to the elbow.
   t_jacket: {
-    parts: [
-      ...limb('M76 70 L54 83', '#e0483a', 19), ...limb('M134 68 L155 80', '#e0483a', 19),
-      line('M51 80 L59 88', '#b8352a', 5), line('M151 76 L157 85', '#b8352a', 5),
-      path(SWEATER, '#e0483a'),
-      path('M92 54 L106 63 L100 70 Z', '#c43c30'), path('M120 54 L106 63 L113 70 Z', '#c43c30'),
-      line('M106 64 L107 126', '#b8352a', 1.6),
-      ['circle', { cx: 106.3, cy: 80, r: 1.6, fill: W }], ['circle', { cx: 106.6, cy: 96, r: 1.6, fill: W }], ['circle', { cx: 106.9, cy: 112, r: 1.6, fill: W }],
-      line('M120 92 L130 92', '#b8352a', 1.6),
+    far: [...tube(farArmSegs(SLEEVE_W[0], SLEEVE_W[1], 0.5), '#e0483a', false, 'butt'), ...tube([[seg(lerp(P.farShoulder, P.farElbow, 0.8), lerp(P.farShoulder, P.farElbow, 0.98)), SLEEVE_W[0] + 2]], '#b8352a', false, 'butt')],
+    near: [...tube(nearArmSegs(SLEEVE_W[0], SLEEVE_W[1], 0.5), '#e0483a', false, 'butt'), ...tube([[seg(lerp(P.nearShoulder, P.nearElbow, 0.8), lerp(P.nearShoulder, P.nearElbow, 0.98)), SLEEVE_W[0] + 2]], '#b8352a', false, 'butt')],
+    main: [
+      path(TOP_BODY, '#e0483a'),
+      path('M98 47 L104 55 L99 59 L95 51 Z', '#c43c30'),
+      path('M112 47 L109 56 L114 58 L116 52 Z', '#c43c30'),
+      line('M118 60 C119.5 72 119 86 116 98 C114.5 108 115 120 114.5 132', '#b8352a', 1.4),
+      ['circle', { cx: 119.2, cy: 72, r: 1.3, fill: W }], ['circle', { cx: 117.6, cy: 90, r: 1.3, fill: W }], ['circle', { cx: 115, cy: 108, r: 1.3, fill: W }],
+      line('M93 96 L100 96', '#b8352a', 1.2),
     ],
   },
-  // Race singlet with a number bib on the back.
+  // Race singlet with a number bib on the side.
   t_singlet: {
-    parts: [
-      path(VEST, '#ffd23f'),
-      shape('rect', { x: 92, y: 80, width: 28, height: 22, rx: 3 }, W),
-      line('M98 88 H114', EDGE, 2.2), line('M98 95 H110', EDGE, 2.2),
+    far: [], near: [],
+    main: [
+      path(TANK_BODY, '#ffd23f'),
+      line('M100 52.5 C103 57 107 57 110 52.5', '#d9ad1f', 1.8),
+      shape('rect', { x: 97, y: 84, width: 15, height: 13, rx: 2, transform: 'rotate(-4 104.5 90.5)' }, W),
+      line('M100 89 H109 M100 93 H106', EDGE, 1.6, 'rotate(-4 104.5 90.5)'),
     ],
   },
-  // Track jacket: stripes down sleeves and sides.
+  // Track jacket: stripes along the arms and the side seam, front zip.
   t_tracksuit: {
-    parts: [
-      ...longSleeves('#1d3557', '#13263f'),
-      line(SLEEVE_BACK, W, 2.2), line(SLEEVE_FRONT, W, 2.2),
-      path(SWEATER, '#1d3557'),
-      line('M70 76 L70 120', W, 2.4), line('M141 76 L141 120', W, 2.4),
-      path(HEM, '#13263f'),
-      collarRib('#13263f'),
+    far: [...longSleeves('#1d3557').far, ...cuff('far', '#13263f'), line(seg(P.farShoulder, P.farElbow, lerp(P.farElbow, P.farWrist, 0.76)), W, 1.6)],
+    near: [...longSleeves('#1d3557').near, ...cuff('near', '#13263f'), line(seg(P.nearShoulder, P.nearElbow, lerp(P.nearElbow, P.nearWrist, 0.76)), W, 1.6)],
+    main: [
+      path(TOP_BODY, '#1d3557'),
+      line('M101 64 C99 80 101 100 99 130', W, 2),
+      line('M120 58 C121 72 119.5 88 116 99 C114.5 110 115 122 114.5 134', '#a8b3c4', 1.1),
+      path(TOP_HEM, '#13263f'),
+      line('M98 48.5 C102 53 108 53 112 48.5', '#13263f', 2.6),
     ],
   },
 });
 
-// ---------------------------------------------------------------------------------
-// Bottoms: baggy cuts
-// ---------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------
+// Bottoms
+// ---------------------------------------------------------------------------------------
 
-const hips = (color) => path(HIPS, color);
+const pelvis = (color) => path(PELVIS, color);
 
 export const BOTTOMS = Object.freeze({
-  // Baggy shorts to the knee.
-  b_shorts: { parts: [...limb(THIGH_BACK, '#1d3557', 27), ...limb(THIGH_FRONT, '#1d3557', 27), hips('#1d3557'), line('M110 120 L111 138', '#13263f', 1.6)] },
-  b_runshorts: { parts: [...limb('M94 128 L93.4 152', '#e0483a', 25), ...limb('M120 126 L140 131', '#e0483a', 25), hips('#e0483a'), line('M84 146 L102 146', W, 2)] },
-  b_leggings: { parts: [...limb(LEG_BACK, '#2b2b33', 16), ...limb(LEG_FRONT, '#2b2b33', 16), hips('#2b2b33')] },
-  // Baggy joggers that taper into the socks (the default look).
-  b_joggers: {
-    parts: [
-      ...limb('M94 128 L92 186', '#f5821f', 27), ...limb('M92 186 L90.8 208', '#f5821f', 22),
-      ...limb('M120 126 L158 136', '#f5821f', 27), ...limb('M158 136 L156 160', '#f5821f', 22),
-      hips('#f5821f'),
-      line('M86 156 C90 162 96 164 100 162', '#c9650f', 1.6),
-      line('M132 124 C140 130 148 130 154 128', '#c9650f', 1.6),
-    ],
+  // Loose shorts to the knee.
+  b_shorts: {
+    far: tube(farLegSegs(LIMB.thigh + 7, 0, 0.42), '#1d3557', false, 'butt'),
+    near: tube(nearLegSegs(LIMB.thigh + 7, 0, 0.42), '#1d3557', false, 'butt'),
+    main: [pelvis('#1d3557'), line('M90 116 C96 119 105 119 111 116', '#13263f', 1.4)],
   },
-  // Pleated skirt.
+  // Split running shorts, high on the thigh.
+  b_runshorts: {
+    far: tube(farLegSegs(LIMB.thigh + 4, 0, 0.24), '#e0483a', false, 'butt'),
+    near: tube(nearLegSegs(LIMB.thigh + 4, 0, 0.24), '#e0483a', false, 'butt'),
+    main: [pelvis('#e0483a'), line('M90 116 C96 119 105 119 111 116', '#b8352a', 1.4)],
+  },
+  b_leggings: {
+    far: tube(farLegSegs(LIMB.thigh + 1.5, LIMB.calf + 1.5, 0.92), '#2b2b33'),
+    near: tube(nearLegSegs(LIMB.thigh + 1.5, LIMB.calf + 1.5, 0.92), '#2b2b33'),
+    main: [pelvis('#2b2b33'), line('M90 116 C96 119 105 119 111 116', '#45454f', 1.6)],
+  },
+  // Tapered joggers with cuffs.
+  b_joggers: {
+    far: [...tube(farLegSegs(LIMB.thigh + 6, LIMB.calf + 5, 0.9), '#f5821f'), ...tube([[seg(lerp(P.farKnee, P.farAnkle, 0.74), lerp(P.farKnee, P.farAnkle, 0.86)), LIMB.calf + 3]], '#c9650f', false)],
+    near: [
+      ...tube(nearLegSegs(LIMB.thigh + 6, LIMB.calf + 5, 0.9), '#f5821f'),
+      ...tube([[seg(lerp(P.nearKnee, P.nearAnkle, 0.74), lerp(P.nearKnee, P.nearAnkle, 0.86)), LIMB.calf + 3]], '#c9650f', false),
+      line('M108 154 C111 160 112 166 112 172', '#c9650f', 1.1),
+    ],
+    main: [pelvis('#f5821f'), line('M90 116 C96 119 105 119 111 116', '#c9650f', 1.6)],
+  },
+  // Pleated skirt flaring back with the stride.
   b_skirt: {
-    parts: [
-      path('M74 116 L138 114 L150 152 L66 154 Z', '#f07ab4'),
-      line('M88 118 L84 152 M102 118 L101 153 M116 117 L118 153 M128 116 L134 152', '#c95c91', 1.6),
+    far: [], near: [],
+    main: [
+      path('M89 112 C96 115 105 115 111 112 L122 148 C106 155 86 154 70 145 Z', '#f07ab4'),
+      line('M94 115 L80 148 M100 116 L93 151 M106 115 L106 152 M110 114 L117 150', '#c95c91', 1.1),
     ],
   },
 });
 
-// ---------------------------------------------------------------------------------
-// Shoes (with long socks, like the reference look)
-// ---------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------
+// Shoes: low running shoes in profile (local foot frame)
+// ---------------------------------------------------------------------------------------
 
-function slides(sole, sock = '#f7b8c8', band = '#7ccc3a') {
-  return [
-    ...limb(SOCK_BACK, sock, 16), ...limb(SOCK_FRONT, sock, 16),
-    line('M82 211 L99 211', band, 3), line('M147 164 L164 165', band, 3),
-    path(footShape(ANKLE_BACK), sock), path(footShape(ANKLE_FRONT), sock),
-    path(soleShape(ANKLE_BACK), sole), path(soleShape(ANKLE_FRONT), sole),
-    path(strapShape(ANKLE_BACK), sole), path(strapShape(ANKLE_FRONT), sole),
-  ];
-}
-
-function sneakers(color, sole, sock = '#ffffff') {
-  return [
-    ...limb(SOCK_BACK, sock, 16), ...limb(SOCK_FRONT, sock, 16),
-    path(sneakerShape(ANKLE_BACK), color), path(sneakerShape(ANKLE_FRONT), color),
-    line(`M${ANKLE_BACK.x - 10} ${ANKLE_BACK.y + 12} L${ANKLE_BACK.x + 21} ${ANKLE_BACK.y + 12}`, sole, 3),
-    line(`M${ANKLE_FRONT.x - 10} ${ANKLE_FRONT.y + 12} L${ANKLE_FRONT.x + 21} ${ANKLE_FRONT.y + 12}`, sole, 3),
-  ];
+function runners(color, sole, stripe) {
+  const pair = (t) => [path(SHOE, color, t), line(SHOE_SOLE, sole, 3, t), line(SHOE_STRIPE, stripe, 1.4, t)];
+  return { far: pair(FOOT_FAR_T), near: pair(FOOT_NEAR_T) };
 }
 
 export const SHOES = Object.freeze({
-  s_none: { parts: [] },
-  s_runner: { parts: slides('#7ccc3a') },
-  s_white: { parts: sneakers('#f4f4f4', '#b5b5b5') },
-  s_blue: { parts: sneakers('#2f80ed', '#ffffff', '#dfe8f5') },
-  s_pink: { parts: slides('#f07ab4', '#ffffff', '#f07ab4') },
+  s_none: { far: [], near: [] },
+  s_runner: runners('#7ccc3a', '#ffffff', '#3f7d1a'),
+  s_white: runners('#f4f4f4', '#b5b5b5', '#9aa3b0'),
+  s_blue: runners('#2f80ed', '#ffffff', '#dfe8f5'),
+  s_pink: runners('#f07ab4', '#ffffff', '#ffffff'),
 });
 
-// ---------------------------------------------------------------------------------
-// Accessories (one at a time). Seen from behind: glasses show as arms + the lens edge.
-// ---------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------
+// Accessories (one at a time)
+// ---------------------------------------------------------------------------------------
 
-function sideGlasses(frame, lens, width) {
+function glasses(frame, lens, width) {
   return [
-    line('M95 39 L121 37', frame, width),
-    shape('ellipse', { cx: 123.5, cy: 39, rx: 3.2, ry: 5 }, lens),
-    ['ellipse', { cx: 123.5, cy: 39, rx: 3.2, ry: 5, fill: 'none', stroke: frame, 'stroke-width': width }],
+    line('M118 26.5 L104.5 27.5', frame, width, HEAD_T),
+    path('M118 24.5 L127 24 C127.6 27.5 126.8 30.3 124.5 30.8 L119 30.4 C117.6 28.6 117.4 26.4 118 24.5 Z', lens, HEAD_T),
+    ...(lens === 'none' ? [line('M118 24.5 L127 24 C127.6 27.5 126.8 30.3 124.5 30.8 L119 30.4 C117.6 28.6 117.4 26.4 118 24.5 Z', frame, width, HEAD_T)] : []),
   ];
 }
 
 export const ACCESSORIES = Object.freeze({
-  a_none: { parts: [] },
-  // Cap with the brim pointing forward (to the right).
+  a_none: {},
+  // Cap with the brim pointing forward.
   a_cap: {
-    parts: [
-      path('M87 38 C86 23 96 19 106 19 C117 19 126 24 125 37 Z', '#2f80ed'),
-      path('M119 34 C128 32 139 33 143 37 C136 40 127 39 120 38 Z', '#2568c2'),
-      line('M97 37 C102 34 110 34 115 36', '#2568c2', 1.4),
+    head: [
+      path('M101.8 28 C101 17 107 12 114 12 C121 12 126.5 17 126.5 24 L102 28.5 Z', '#2f80ed', HEAD_T),
+      path('M122.5 22 C130 20 137 21 140.5 24.5 C134 26.5 127.5 26.5 122 26 Z', '#2568c2', HEAD_T),
+      circle(114, 12.3, 1.6, '#2568c2', HEAD_T),
     ],
   },
-  a_headband: { parts: [path('M88 33 C96 27 116 27 124 33 L124 39 C116 33 96 33 88 39 Z', '#e0483a')] },
-  a_sunglasses: { parts: sideGlasses('#222222', '#222222', 2.2) },
-  a_glasses: { parts: sideGlasses(EDGE, 'none', 1.8) },
+  a_headband: { head: [path('M102.5 25 C110 19 120 18 126.3 21 L126.6 26.5 C120 23.5 110 24 103 30.5 Z', '#e0483a', HEAD_T)] },
+  a_sunglasses: { head: glasses('#222222', '#1c1c22', 1.8) },
+  a_glasses: { head: glasses('#15151b', 'none', 1.3) },
+  // Band over the crown, cup on the side of the head.
   a_headphones: {
-    parts: [
-      line('M89 42 C88 16 124 16 123 42', '#333333', 3.5),
-      shape('rect', { x: 84, y: 36, width: 8, height: 14, rx: 3 }, '#e0483a'),
+    head: [
+      line('M109 31 C105 13 121 10 122.5 24', '#333333', 3.2, HEAD_T),
+      shape('ellipse', { cx: 111.5, cy: 31, rx: 4.2, ry: 5.8, transform: HEAD_T }, '#e0483a'),
     ],
   },
+  // Wrapped round the neck, tail flowing back.
   a_scarf: {
-    parts: [
-      path('M88 52 C96 62 116 62 124 52 L126 61 C116 71 96 71 86 61 Z', '#e0483a'),
-      path('M92 62 L82 86 L91 88 L98 66 Z', '#e0483a'),
-      line('M84 80 L92 82', '#b8352a', 1.4),
+    main: [
+      path('M101 52 C94 54 86 60 79 64 L83.5 69.5 C90 65 96 61 102.5 59 Z', '#e0483a'),
+      path('M100 46 C103 52.5 110 53 114 47 L115 54.5 C111 60 103 60 98.5 54.5 Z', '#e0483a'),
+      line('M81 64.5 L84.5 69', '#b8352a', 1.2),
     ],
   },
+  // Medal on a ribbon, resting on the chest.
   a_medal: {
-    parts: [
-      line('M96 58 L106 80 L118 58', '#2f80ed', 3.5),
-      circle(106, 86, 6.5, '#f6c445'),
-      line('M106 82.5 V89.5', '#c4901a', 1.6),
+    main: [
+      line('M104 52 L114.5 71 M111 51 L116.5 71', '#2f80ed', 2.4),
+      circle(116, 75.5, 4.6, '#f6c445'),
+      line('M116 73 V78', '#c4901a', 1.2),
     ],
   },
-  a_watch: {
-    parts: [shape('rect', { x: 42, y: 89, width: 11, height: 7, rx: 2, transform: 'rotate(-55 47.5 92.5)' }, '#222222')],
-  },
+  // Sports watch on the near wrist.
+  a_watch: { near: [shape('rect', { x: 79.6, y: 108.6, width: 10.5, height: 5.6, rx: 1.6, transform: 'rotate(8 84.85 111.4)' }, '#222222'), line('M83.1 110.6 H86.6', '#7ccc3a', 1.2, 'rotate(8 84.85 111.4)')] },
 });
 
-// ---------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------
 // Golden set: LOCKED previews only. These IDs are NOT part of the avatar whitelist,
 // so a stored avatar can never contain them. They are unlocked by rewards in Phase 5.
-// ---------------------------------------------------------------------------------
+// `layer` tells the editor which tab shows them (acc = head close-up).
+// ---------------------------------------------------------------------------------------
 
 const GOLD = '#f4c430';
 const GOLD_DARK = '#c4901a';
 
 export const GOLDEN_SET = Object.freeze({
-  g_glasses: { layer: 'acc', parts: sideGlasses(GOLD_DARK, '#ffe066', 2.6) },
-  // Puffer vest panels over the top.
+  g_glasses: { layer: 'acc', head: glasses(GOLD_DARK, '#ffe066', 2) },
+  // Quilted puffer vest over the top.
   g_vest: {
     layer: 'top',
-    parts: [
-      path('M70 66 L100 58 L102 128 L71 124 C70 104 70 84 70 66 Z', GOLD),
-      path('M142 66 L112 58 L110 128 L141 124 C142 104 142 84 142 66 Z', GOLD),
-      line('M72 86 L100 84 M72 104 L101 103 M140 86 L112 84 M140 104 L111 103', GOLD_DARK, 1.6),
+    main: [
+      path('M96 49 C88 54 84 63 84 76 C84 90 89 99 88 109 C86 117 85 125 86 134 C95 139 106 140 116 136 C117 126 117 116 115 106 C116 96 123 89 123 76 C123 64 119 56 114 49 C109 54 101 54 96 49 Z', GOLD),
+      line('M85 72 C96 74 110 74 122.5 71 M86 90 C97 92 110 92 121 89 M88 108 C97 110 107 110 115 107 M86.5 124 C96 126 106 126 116.3 123', GOLD_DARK, 1.2),
+      line('M119 60 C120 76 117.5 92 115.5 104 C115 116 116 126 115.6 135', GOLD_DARK, 1.2),
     ],
   },
   g_boots: {
     layer: 'shoes',
-    parts: [
-      ...limb('M91.2 198 L90 230', GOLD, 18), ...limb('M156.8 152 L154 182', GOLD, 18),
-      path(sneakerShape(ANKLE_BACK), GOLD), path(sneakerShape(ANKLE_FRONT), GOLD),
-      line(`M${ANKLE_BACK.x - 10} ${ANKLE_BACK.y + 12} L${ANKLE_BACK.x + 21} ${ANKLE_BACK.y + 12}`, GOLD_DARK, 3),
-      line(`M${ANKLE_FRONT.x - 10} ${ANKLE_FRONT.y + 12} L${ANKLE_FRONT.x + 21} ${ANKLE_FRONT.y + 12}`, GOLD_DARK, 3),
-    ],
+    far: [...tube([[seg(lerp(P.farKnee, P.farAnkle, 0.55), P.farAnkle), LIMB.calf + 4]], GOLD), path(SHOE, GOLD, FOOT_FAR_T), line(SHOE_SOLE, GOLD_DARK, 3, FOOT_FAR_T)],
+    near: [...tube([[seg(lerp(P.nearKnee, P.nearAnkle, 0.55), P.nearAnkle), LIMB.calf + 4]], GOLD), path(SHOE, GOLD, FOOT_NEAR_T), line(SHOE_SOLE, GOLD_DARK, 3, FOOT_NEAR_T)],
   },
   g_crown: {
     layer: 'acc',
-    parts: [
-      path('M92 26 L91 10 L99 17 L106 6 L113 17 L121 10 L120 26 Z', GOLD),
-      circle(106, 19, 2.2, '#e0483a'),
+    head: [
+      path('M104 17 L102.5 3.5 L109 9 L114 0 L119 9 L125.5 3.5 L124 17 C118 15 110 15 104 17 Z', GOLD, HEAD_T),
+      circle(114, 11, 1.9, '#e0483a', HEAD_T),
     ],
   },
-  g_color: { layer: 'skin', skin: '#e6b422', parts: [] },
+  g_color: { layer: 'skin', skin: '#e6b422' },
 });

@@ -21,7 +21,8 @@ const TABS = [
 ];
 
 // Quick picks for the body color. Constants, and validated again like any other color.
-const SKIN_SWATCHES = ['#ff8c1a', '#ffd23f', '#5ec8f0', '#7ccc3a', '#f07ab4', '#b38bff', '#ffdbac', '#e0ac69', '#c68642', '#8d5524', '#f4f4f4', '#3a3a46'];
+// Mannequin tones first (graphite default, light studio grey, black), then colours and skin tones.
+const SKIN_SWATCHES = ['#5b5e69', '#c9ccd3', '#2b2c33', '#ff8c1a', '#ffd23f', '#5ec8f0', '#7ccc3a', '#f07ab4', '#b38bff', '#ffdbac', '#e0ac69', '#c68642', '#8d5524', '#f4f4f4'];
 
 export function renderAvatarEditor({ state, navigate, toast }) {
   let draft = { ...state.avatar };
