@@ -1,15 +1,44 @@
-// Health connect screen: manual entry works (source 'manual'); the Android app (Part B)
-// and the Apple Shortcut (later phase) are described but not built yet.
+// Health connect screen: manual entry (source 'manual'), the Android set-up (an independent
+// Health Connect webhook app sends daily totals with a personal ingest token, source
+// 'health_connect') and a link to the iPhone Shortcut set-up (source 'shortcut').
 
 import { ManualStepsSource } from '../../steps/manualSource.js';
 import { fetchStepHistory, STEPS_MAX, syncFromSource } from '../../steps/sync.js';
+import { ANDROID_APP } from '../../integrations/androidApp.js';
 import { STRINGS } from '../../strings.js';
 import { addDays, formatDate, todayISO } from '../../util/date.js';
 import { card, formatSteps, screenHeader } from '../components.js';
 import { h, onMount } from '../dom.js';
+import { ingestUrlField, tokenCard } from '../ingestTokens.js';
 
 const T = STRINGS.health;
 const manualSource = new ManualStepsSource();
+
+/** Android set-up: install the app, create a token, configure the app. Wrapped for scrolling. */
+function androidSection(toast) {
+  const release = h('a', {
+    class: 'ext-link',
+    text: T.androidReleaseLink,
+    attrs: { href: ANDROID_APP.releaseUrl, target: '_blank', rel: 'noopener noreferrer' },
+  });
+  return h('div', { class: 'android-setup', attrs: { id: 'android-app', tabindex: '-1' } },
+    card(T.androidSectionTitle,
+      h('p', { class: 'health-card-text', text: T.androidIntro(ANDROID_APP.name) }),
+      h('p', { class: 'hint', text: T.androidDoOnPhone }),
+    ),
+    card(T.androidInstallTitle,
+      h('ol', { class: 'steps-list' },
+        T.androidInstallSteps(ANDROID_APP.name, ANDROID_APP.version, ANDROID_APP.nameOnPhone).map((text) => h('li', { text }))),
+      release,
+    ),
+    tokenCard('android', { title: T.androidTokenTitle, intro: T.androidTokenIntro, none: T.androidTokenNone, create: T.androidTokenCreate }, toast),
+    card(T.androidSetupTitle,
+      ingestUrlField(T.androidUrlLabel, toast),
+      h('ol', { class: 'steps-list' }, T.androidSetupSteps.map((text) => h('li', { text }))),
+      h('p', { class: 'hint', text: T.androidLimitsNote }),
+    ),
+  );
+}
 
 function sourceCard(title, text, action, onAction, tag) {
   const btn = h('button', { class: 'btn btn-secondary', text: action, attrs: { type: 'button', disabled: !onAction } });
@@ -69,11 +98,7 @@ export function renderHealth({ state, toast, navigate }) {
     }
   });
 
-  // --- Android placeholder section (Part B adds the real flow) ---
-  const androidSection = h('section', { class: 'card', attrs: { id: 'android-app', tabindex: '-1' } },
-    h('h2', { class: 'card-title', text: T.androidSectionTitle }),
-    h('p', { class: 'hint', text: T.androidSection }),
-  );
+  const android = androidSection(toast);
 
   const node = h('div', { class: 'page' },
     screenHeader(T.title),
@@ -85,11 +110,11 @@ export function renderHealth({ state, toast, navigate }) {
     ),
     card(T.historyTitle, history),
     sourceCard(T.androidTitle, T.androidText, T.androidAction, () => {
-      androidSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      androidSection.focus({ preventScroll: true });
+      android.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      android.focus({ preventScroll: true });
     }),
     sourceCard(T.shortcutTitle, T.shortcutText, T.shortcutAction, () => navigate('profile/iphone')),
-    androidSection,
+    android,
     h('p', { class: 'hint' }, T.privacy, ' ', h('a', { attrs: { href: 'privacy.html' }, text: T.privacyLink })),
   );
   onMount(node, loadHistory);

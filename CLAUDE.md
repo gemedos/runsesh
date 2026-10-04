@@ -20,6 +20,7 @@ This file defines non-negotiable rules for building this project. Read it fully 
    4. A key can only call the `ingest-steps` Edge Function, which writes **the key owner's own** `daily_steps` row with `source = 'shortcut'`, only for the allowed days. It cannot read data, log in, or change anything else.
    5. Each key is rate limited (at most 30 requests per hour).
    6. Any change to this mechanism needs my explicit approval.
+   *Superseded by "Health data ingest tokens" (see Development derived exceptions) once the clean-up migration that removes `shortcut_keys` has run.*
 2. Never store, log, cache, or display a user's password anywhere other than the provider's login request.
 3. Never put secrets in the repo or bundle: no service-role keys, admin keys, private API keys, signing secrets, or database passwords. Only keys the provider explicitly designates as **public/publishable** may appear in client code. Variables prefixed `VITE_`, `NEXT_PUBLIC_`, etc. are **public** once bundled.
 4. Never commit `.env*`, `*.pem`, `*.key`, credentials files, or service-account JSON. Keep them in `.gitignore` from the first commit.
@@ -153,6 +154,16 @@ Exception to rule 2.1. Our own code may generate exactly one kind of credential:
 4. A key can only call the `ingest-steps` Edge Function, which writes **the key owner's own** `daily_steps` row with `source = 'shortcut'`, only for the allowed days. It cannot read data, log in, or change anything else.
 5. Each key is rate limited (at most 30 requests per hour).
 6. Any change to this mechanism needs my explicit approval.
+*Superseded by "Health data ingest tokens" (see Development derived exceptions) once the clean-up migration that removes `shortcut_keys` has run.*
 
 ### Party invite codes (approved by me on 2026-10-05)
 Exception to rules 2.1 and 2.6. The database may generate party invite codes: 18 random bytes from `gen_random_bytes` (pgcrypto), base64url. Only the SHA-256 hash is stored. A code may appear in a URL only after the `#` (`#/join/CODE`), never in the query string, and the app removes it from the address bar as soon as it is read. Codes expire after 7 days, allow at most 25 joins, can be revoked by the leader, and joining is rate limited per user. A code only lets a signed-in user without a party join that one party; it grants nothing else. Any change needs my approval.
+
+### Health data ingest tokens (approved by me on 2026-10-04)
+Exception to rule 2.1. The `ingest-tokens` Edge Function may generate personal ingest tokens so a phone app (the Android Health Connect webhook app; later the iPhone Shortcut) can send that user's daily step totals. Conditions:
+1. The secret is 32 bytes from the platform's secure random generator (`crypto.getRandomValues`), base64url. The phone sends `<token id>.<secret>` only in the `Authorization` header, never in a URL (unless I approve otherwise).
+2. Only the SHA-256 hash is stored (`public.ingest_tokens`); clients can never read it. The token is shown to the user once and is never logged, written to browser storage or caches, or put in a URL.
+3. At most 2 active tokens per user; the user can revoke them at any time; they are deleted with the account.
+4. A token only lets the `ingest-steps` function write **the token owner's own** `daily_steps` (source by platform) for the allowed days. It cannot read data or do anything else.
+5. Each token is rate limited (20 requests per hour), and every authentication failure returns the identical 401.
+6. Once the clean-up migration that removes `shortcut_keys` has run, this replaces the Apple Shortcut keys exception, which stays in this file marked "superseded". Any change needs my approval.

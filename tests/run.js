@@ -4,6 +4,7 @@ import './avatar.test.js';
 import './competition.test.js';
 import './auth.test.js';
 import './party.test.js';
+import './ingestTokens.test.js';
 import { results } from './harness.js';
 
 const out = document.getElementById('results');
