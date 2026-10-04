@@ -16,9 +16,10 @@ powershell -ExecutionPolicy Bypass -File tools/serve.ps1
 
 ```js
 // Paste once per console session.
-const URL = 'https://qxjeaoxujpyafksxzqak.supabase.co';
+// Not named URL: a top-level const would hide the browser's built-in URL that the SDK needs.
+const SB_URL = 'https://qxjeaoxujpyafksxzqak.supabase.co';
 const KEY = '<publishable key from js/config.js>';
-const client = () => supabase.createClient(URL, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+const client = () => supabase.createClient(SB_URL, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const today = new Date().toISOString().slice(0, 10); // UTC day
 const shift = (days) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); };
 const A_ID = '<user A id>', B_ID = '<user B id>';
@@ -115,7 +116,7 @@ Console shows nothing from the URL or the session.
 Deploy both Edge Functions first (`docs/edge-functions.md`). Use the console session from
 "Setup" (User A signed in as `A`). `FN` is the functions base URL.
 ```js
-const FN = `${URL}/functions/v1`;
+const FN = `${SB_URL}/functions/v1`;
 const call = (path, opts = {}) => fetch(`${FN}/${path}`, opts).then(async (r) => [r.status, await r.json().catch(() => null)]);
 ```
 1. **Create, shown once:** in the app (Profile → runsesh on iPhone → Create Shortcut key) create a
