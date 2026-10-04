@@ -23,14 +23,15 @@ export const AVATAR_FIELDS = Object.freeze({
 
 const ALLOWED_KEYS = ['v', 'skin', ...Object.keys(AVATAR_FIELDS)];
 
+/** The plain graphite mannequin in running kit (docs/design.md, section 7). */
 export const DEFAULT_AVATAR = Object.freeze({
   v: 1,
-  skin: '#ff8c1a',
+  skin: '#5b5e69',
   hair: 'h_none',
   hairColor: 'hc_brown',
-  top: 't_jersey',
-  bottom: 'b_joggers',
-  shoes: 's_runner',
+  top: 't_tank',
+  bottom: 'b_runshorts',
+  shoes: 's_white',
   acc: 'a_none',
 });
 
@@ -68,8 +69,36 @@ export function sanitizeAvatar(input) {
 }
 
 export const FULL_VIEWBOX = '26 4 158 250';
-/** Profile-picture close-up: big head in the upper circle, shoulders and collar at the bottom. */
-export const HEAD_VIEWBOX = '70 12 72 72';
+/** Profile-picture close-up: the head in profile, neck and shoulder line at the bottom. */
+export const HEAD_VIEWBOX = '86 4 56 56';
+
+// Studio lighting (docs/design.md, section 7): one soft key light from the upper left/back.
+// Every surface is drawn twice: in its colour, then with this gradient on top. Far-side limbs
+// use a darker version, as if in the body's shadow. Coordinates are fixed; no user data.
+const LIGHT = { x1: 70, y1: 16, x2: 128, y2: 238 };
+const LIGHT_STOPS = {
+  near: [[0, '#ffffff', 0.22], [0.42, '#ffffff', 0], [0.55, '#000000', 0], [1, '#000000', 0.3]],
+  far: [[0, '#000000', 0.16], [0.5, '#000000', 0.24], [1, '#000000', 0.42]],
+};
+let drawingCount = 0;
+
+function lightGradient(id, stops) {
+  return s('linearGradient', { id, gradientUnits: 'userSpaceOnUse', ...LIGHT },
+    ...stops.map(([offset, color, opacity]) => s('stop', { offset, 'stop-color': color, 'stop-opacity': opacity })));
+}
+
+/** The lighting copy of a surface: same geometry, gradient instead of colour, no edge. */
+function lightingCopy(tag, attrs, gradientUrl) {
+  const copy = { ...attrs };
+  if (copy.fill && copy.fill !== 'none') {
+    copy.fill = gradientUrl;
+    copy.stroke = 'none';
+  } else if (copy.stroke) {
+    copy.stroke = gradientUrl;
+  }
+  delete copy['stroke-opacity'];
+  return s(tag, copy);
+}
 
 /**
  * Builds an <svg> for an avatar.
@@ -89,22 +118,23 @@ export function buildAvatarSvg(avatar, opts = {}) {
   };
 
   const hair = HAIR[a.hair];
+  const top = TOPS[a.top];
+  const bottom = BOTTOMS[a.bottom];
+  const shoes = golden && golden.layer === 'shoes' ? golden : SHOES[a.shoes];
+  const acc = ACCESSORIES[a.acc];
+  const g = (slot) => (golden && golden[slot]) || [];
+
+  // Back to front. [parts, far?]: far-side parts get the darker lighting.
   const layers = [
-    hair.back,
-    opts.crop ? [] : BODY.shadow,
-    BODY.legs,
-    BODY.hips,
-    BOTTOMS[a.bottom].parts,
-    golden && golden.layer === 'shoes' ? golden.parts : (a.shoes === 's_none' ? BODY.feet : SHOES[a.shoes].parts),
-    BODY.arms,
-    BODY.neck,
-    BODY.torso,
-    TOPS[a.top].parts,
-    golden && golden.layer === 'top' ? golden.parts : [],
-    BODY.head,
-    hair.front,
-    ACCESSORIES[a.acc].parts,
-    golden && golden.layer === 'acc' ? golden.parts : [],
+    [hair.back],
+    [opts.crop ? [] : BODY.shadow],
+    [BODY.farLeg, true], [bottom.far || [], true], [shoes.far || [], true],
+    [BODY.farArm, true], [top.far || [], true],
+    [BODY.torso], [BODY.nearLeg], [BODY.neck],
+    [bottom.main || []], [bottom.near || []], [shoes.near || []],
+    [top.main || []], [g('main')], [acc.main || []],
+    [BODY.head], [hair.front], [acc.head || []], [g('head')],
+    [BODY.nearArm], [top.near || []], [acc.near || []],
   ];
 
   const svg = s('svg', {
@@ -116,13 +146,19 @@ export function buildAvatarSvg(avatar, opts = {}) {
   });
   if (opts.label) svg.setAttribute('aria-label', opts.label);
 
-  for (const layer of layers) {
-    for (const [tag, attrs] of layer) {
+  drawingCount += 1;
+  const nearId = `rs-av${drawingCount}-near`;
+  const farId = `rs-av${drawingCount}-far`;
+  svg.append(s('defs', {}, lightGradient(nearId, LIGHT_STOPS.near), lightGradient(farId, LIGHT_STOPS.far)));
+
+  for (const [parts, far] of layers) {
+    for (const [tag, attrs, kind] of parts) {
       const resolved = {};
       for (const [name, value] of Object.entries(attrs)) {
         resolved[name] = typeof value === 'string' && has(colors, value) ? colors[value] : value;
       }
       svg.append(s(tag, resolved));
+      if (kind === 'surf') svg.append(lightingCopy(tag, resolved, `url(#${far ? farId : nearId})`));
     }
   }
   return svg;

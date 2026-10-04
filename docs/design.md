@@ -1,7 +1,7 @@
 # runsesh design spec (v2, "night stompers" direction)
 
 Reference: the four screenshots in `inspo/` (local only, not part of the app). We borrow the
-*language* (night scenery, sticker typography, faceless round-headed figures, dark sheets),
+*language* (night scenery, sticker typography, faceless figures, dark sheets),
 never the other app's artwork, name or branding. All art in `img/` is drawn for runsesh.
 
 ---
@@ -22,7 +22,7 @@ never the other app's artwork, name or branding. All art in `img/` is drawn for 
   with a dark outline, like a sticker. Body text is medium weight, and secondary text is grey, never thin.
 - **Shape:** everything is rounded. Pills for buttons and tabs, 20–24px radii for tiles and sheets, circles for avatars.
 - **Depth:** created by the scenery and by stacking (sticker over avatar, avatar over banner), not by drop shadows.
-- **Characters:** faceless, round head, flat fill, thin dark outline, mid-stomp pose.
+- **Characters:** faceless matte mannequins in side profile, mid-run, softly lit (see section 7).
 
 ---
 
@@ -209,27 +209,71 @@ Safe-area insets are respected by the top bar, the bottom bar and the side rail.
 
 ---
 
-## 7. Avatar ("stomper") concept
+## 7. Avatar ("mannequin runner") concept, v3
 
-Studied from the references: the character is always seen **from behind, three-quarter**, so the
-face never shows: the head is a plain disc. Our figure is drawn from scratch to the same brief:
+Reference: `inspo/dummy concept image.jpg`, a matte charcoal running mannequin in a studio. We
+take its **form language** (realistic athletic proportions, a smooth faceless egg head, one matte
+material, soft studio light, a mid-stride running pose) and redraw it from scratch as layered SVG.
+It replaces the v2 "stomper" (cartoon, seen from behind). The stored avatar format does **not**
+change: same 8 fields, same part IDs (`docs/avatar-schema.md`), so no database change.
 
+### Character brief (read as a 3D artist would brief a model)
 | Trait | Spec |
 |---|---|
-| Head | Small circle (≈ half the sweater width), sits straight on the collar, no neck |
-| Torso | Boxy, oversized top with drop shoulders; ribbed hem and cuffs on knitwear |
-| Pose | High-knee stomp: front thigh almost horizontal, shin straight down; standing leg straight. Back arm swings out left with the elbow bent down, front arm out right with the forearm hanging |
-| Legs | Long and baggy; trousers taper into long socks |
-| Feet | Long socks with a coloured band + chunky slides (or sneakers) |
-| Line | Flat fills, thin dark edge (1.8 units), one soft shadow under the standing foot |
-| Profile picture | Close-up crop: head fills the upper circle, shoulders/collar show at the bottom |
+| Read | A posable studio mannequin caught mid-run. Clean, premium, sporty; never cute or cartoon. |
+| View | **Side profile, facing right** (the direction of travel on the race track), slight forward lean (~8°). |
+| Proportions | Athletic adult, about **7.5 heads** tall. Long neck, narrow waist, long legs. Head ≈ 23 × 29 units in a 250-unit-tall frame. |
+| Head | Smooth **egg (ovoid)**, tilted forward with the lean. Fuller at the back of the skull, narrowing to a soft chin. **No face, no ears, no features.** |
+| Pose | Running contact phase, as in the reference, mirrored: **near leg** planted under the body with a soft knee, foot flat; **far leg** trailing behind in toe-off, knee bent, heel raised and toes on the ground. Arms opposite to the legs: **far arm** forward with the elbow at ~90° and the fist at chest height; **near arm** swung back, elbow behind the body, forearm hanging, hand at hip height. |
+| Limbs | Tapered "tubes": thigh 19 → calf 13, upper arm 11 → forearm 9, neck 10 units (about the head width at the thigh, as in the reference). Rounded joints, closed fists. |
+| Material | One matte colour for the whole body: the user's **body colour** (`skin`). Default **graphite `#5b5e69`** (the reference's charcoal, lifted a little so it reads on the night scenes). |
+| Seams | Mannequin joint seams as thin darker lines: neck base, waist, wrists. |
+| Lighting | One soft **key light from the upper left/back**: lighter on top and back, darker towards the front and feet. Each limb gets a narrow soft **highlight** along its upper edge so it reads as a cylinder. |
+| Depth | **Far-side** arm and leg are drawn in a darker value (as if in the body's shadow). This is the main cue that sells 3D on a flat figure. |
+| Edge | No cartoon outline. A thin, half-transparent dark edge (1.2 units) keeps the figure readable on dark and light backgrounds and at 36 px. |
+| Ground | A soft contact shadow under the planted foot and a smaller one under the trailing toes. No stand or base plate. |
+| Hems | Shorts and short sleeves end in straight cuts (butt caps), never round bulbs. |
+| Profile picture | Close-up of the head and neck in profile, shoulder line at the bottom of the circle. |
 
-Wardrobe redesign (same IDs, new drawings): knit sweater with diamond band (default), oversized tee,
-tank, hoodie with bunched hood and pocket, button shirt with rolled sleeves (`t_jacket`),
-race singlet with back bib, track jacket. Baggy joggers (default), baggy shorts, running shorts,
-leggings, pleated skirt. Slides with long socks (default), sneakers. Hair is drawn from behind
-(covering the top and back of the head): mop, buzz, spikes, long, bob, ponytail with tie, bun,
-curl cloud, mohawk. Glasses show as an arm plus the lens edge at the side of the head.
+### Wardrobe (same IDs, redrawn for the side view)
+Clothes are athletic and fitted (a mannequin "wears" them): each garment follows the limb tubes a
+little wider, gets the same lighting, and has one or two construction details, nothing more.
+
+- **Tops:** fitted tee with crew neck (`t_tee`), racer tank (`t_tank`), knit sweater with ribbed
+  hem, cuffs and a zigzag band (`t_jersey`), hoodie with the hood resting on the back and a
+  front pouch pocket (`t_hoodie`), shirt-jacket with collar, front placket and rolled sleeves
+  (`t_jacket`), race singlet with a number bib on the side (`t_singlet`), track jacket with
+  white stripes along the arms and side seam and a front zip (`t_tracksuit`).
+- **Bottoms:** loose shorts to the knee (`b_shorts`), split running shorts (`b_runshorts`),
+  leggings (`b_leggings`), tapered joggers with cuffs (`b_joggers`), pleated skirt (`b_skirt`).
+- **Shoes:** low-profile running shoes in side view with a contrast sole and a swoosh-free stripe
+  (green, white, blue, pink); barefoot shows the mannequin foot (`s_none`).
+- **Hair** (drawn on the egg head in profile): buzz shadow, short crop, spikes, long hair falling
+  down the back, bob, ponytail swinging back, bun at the back of the crown, curl cloud, mohawk
+  crest. Bald is the pure mannequin head (`h_none`, default).
+- **Accessories:** cap with the brim forward, headband, wrap sunglasses and thin glasses on the
+  front of the head, headphones (band over the crown, cup on the side), scarf with a tail
+  flowing back, medal on a ribbon at the chest, sports watch on the near wrist.
+- **Golden set** (locked previews, unchanged rules): gold glasses, gold vest, gold boots, crown,
+  gold body.
+
+### Palette and values
+| Role | Value |
+|---|---|
+| Default body | `#5b5e69` graphite |
+| Edge | `#15151b` at 55 % opacity |
+| Key light overlay | white 22 % (top/back) → clear |
+| Shade overlay | clear → black 30 % (front/feet) |
+| Far side | extra black ~22 % |
+| Limb highlight | white 14 %, a third of the limb width, offset up-left |
+
+### Technical notes
+- Pure SVG built with `createElementNS`/`setAttribute`, no `innerHTML`. The only avatar values
+  that reach attributes are still the validated `skin` hex and whitelisted colours.
+- Lighting is one `linearGradient` per drawing (unique `id` per SVG, `userSpaceOnUse`), laid over
+  every surface as a second copy of that surface. Gradients use no user data.
+- The frame (`viewBox 26 4 158 250`) and the head crop keep their sizes, so the race track,
+  profile, rankings and editor layouts do not move.
 
 ## 8. Slider overlay (v2.1)
 

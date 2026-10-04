@@ -14,10 +14,11 @@ If you add or remove a part ID, update this file, `js/strings.js` (its label) an
 ## Example
 
 ```json
-{"v":1,"skin":"#ff8c1a","hair":"h_none","hairColor":"hc_brown","top":"t_jersey","bottom":"b_joggers","shoes":"s_runner","acc":"a_none"}
+{"v":1,"skin":"#5b5e69","hair":"h_none","hairColor":"hc_brown","top":"t_tank","bottom":"b_runshorts","shoes":"s_white","acc":"a_none"}
 ```
 
-This is also the default avatar.
+This is also the default avatar: the graphite mannequin in running kit (docs/design.md, section 7).
+The drawing changed in v3 (side-view mannequin); the format and the part IDs did not.
 
 ## Rules
 
