@@ -21,6 +21,10 @@ These run in the database, so they apply even to direct API calls:
 - **Source check:** `source` must be one of `manual`, `health_connect`, `shortcut`, `admin`.
   `admin` marks totals the project owner entered in the dashboard (migration 15): players can
   neither write `admin` nor overwrite an `admin` row through the API.
+- **Manual entry switches** (migration 16): a player can write `daily_steps` directly only if the
+  global switch (`app_settings`) and their own switch (`user_settings`, no row = off) are on.
+  Checked in the guard for every direct write, whatever `source` the request claims. Players
+  can read but never change the switches. Phone ingest (service role) is not affected.
 - **Time window:** only days from 3 days before today to 1 day after today (UTC) can be
   written or changed, so old results cannot be rewritten later.
 - **No deletes and no key changes:** clients cannot delete rows or move a row to another

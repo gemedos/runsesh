@@ -28,6 +28,9 @@ await A.auth.signInWithPassword({ email: '<user A email>', password: '<user A pa
 ```
 Do not paste real passwords anywhere else, and clear the console afterwards.
 
+Manual entry is **off by default** (migration 16). Before sections 1 and 5, allow both test
+accounts in the SQL editor (`docs/admin.md`, "Allow one player"); section 5b tests the switches.
+
 ## 1. Access control (User A against User B)
 ```js
 await A.from('profiles').select('*').eq('id', B_ID);                       // expect data: []
@@ -80,6 +83,23 @@ await A.from('daily_steps').upsert(row({ day: shift(-4) }));          // expect 
 await A.from('daily_steps').upsert(row({ day: shift(30) }));          // expect 23514
 await A.from('daily_steps').upsert(row({ user_id: B_ID }));           // expect 42501
 ```
+
+## 5b. Manual entry switches
+Use the console session from "Setup" (User A signed in as `A`). Switches are set in the SQL editor
+(`docs/admin.md`).
+```js
+// A has no user_settings row (default): manual entry is off
+await A.from('daily_steps').upsert({ user_id: A_ID, day: today, steps: 111, source: 'manual' });          // expect error 23514 (manual entry is turned off)
+await A.from('daily_steps').upsert({ user_id: A_ID, day: today, steps: 111, source: 'health_connect' });  // expect error 23514 (source does not matter)
+await A.from('user_settings').insert({ user_id: A_ID, manual_entry: true });                         // expect error 42501
+await A.from('user_settings').update({ manual_entry: true }).eq('user_id', A_ID);                    // expect error 42501
+await A.from('app_settings').update({ manual_entry: true });                                          // expect error 42501
+await A.from('user_settings').select('user_id, manual_entry').eq('user_id', B_ID);                // expect data: [] (cannot see B)
+await client().from('app_settings').select('manual_entry');                                        // anon: expect error 42501
+```
+Then allow A in the SQL editor and repeat the first line: it succeeds. Switch the global
+setting off: it fails again. Switch it back on. In the app (as A), Health connect shows the form
+only while both are on. A phone sync with A's ingest token works in every case.
 
 ## 6. No account enumeration
 Use one registered and one unregistered address:

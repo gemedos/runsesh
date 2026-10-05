@@ -2,6 +2,7 @@
 // Health Connect webhook app sends daily totals with a personal ingest token, source
 // 'health_connect') and a link to the iPhone Shortcut set-up (source 'shortcut').
 
+import { fetchManualEntryAllowed } from '../../data/settingsRepo.js';
 import { ManualStepsSource } from '../../steps/manualSource.js';
 import { fetchStepHistory, STEPS_MAX, syncFromSource } from '../../steps/sync.js';
 import { ANDROID_APP } from '../../integrations/androidApp.js';
@@ -98,6 +99,17 @@ export function renderHealth({ state, toast, navigate }) {
     }
   });
 
+  // The owner's switches decide whether the form is shown (the database enforces them anyway).
+  // If they cannot be read, the form stays: the server still refuses writes that are not allowed.
+  const manualBody = h('div', {}, h('p', { class: 'hint', text: T.manualChecking }));
+  async function loadManualSwitch() {
+    const allowed = await fetchManualEntryAllowed(userId);
+    if (!manualBody.isConnected) return;
+    manualBody.replaceChildren(...(allowed === false
+      ? [h('p', { class: 'health-card-text', text: T.manualOff })]
+      : [h('p', { class: 'health-card-text', text: T.manualText }), form]));
+  }
+
   const android = androidSection(toast);
 
   const node = h('div', { class: 'page' },
@@ -105,8 +117,7 @@ export function renderHealth({ state, toast, navigate }) {
     h('p', { class: 'hint', text: T.intro }),
     h('section', { class: 'card health-card' },
       h('div', { class: 'health-card-head' }, h('h2', { class: 'card-title', text: T.manualTitle })),
-      h('p', { class: 'health-card-text', text: T.manualText }),
-      form,
+      manualBody,
     ),
     card(T.historyTitle, history),
     sourceCard(T.androidTitle, T.androidText, T.androidAction, () => {
@@ -118,5 +129,6 @@ export function renderHealth({ state, toast, navigate }) {
     h('p', { class: 'hint' }, T.privacy, ' ', h('a', { attrs: { href: 'privacy.html' }, text: T.privacyLink })),
   );
   onMount(node, loadHistory);
+  onMount(node, loadManualSwitch);
   return node;
 }
