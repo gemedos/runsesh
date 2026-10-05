@@ -88,6 +88,30 @@ export function competitionStandings({ mode, days, memberIds, today }) {
   return rankEntries(memberIds.map((id) => ({ id, value: score[id] })));
 }
 
+/**
+ * One competition day, as shown in the calendar: everyone's steps ranked high to low, plus what
+ * the day earned under the competition's mode. Uses the same rules as competitionStandings:
+ * per-day modes only score finished days (`dayDone`), and only members with more than 0 steps.
+ * @param {object} args
+ * @param {string} args.mode one of RANKING_MODES
+ * @param {Record<string, number>} args.stepsById
+ * @param {string[]} args.memberIds
+ * @param {boolean} args.dayDone the day is over (before today)
+ * @returns {{id: string, value: number, rank: number, points: number, wonDay: boolean}[]}
+ */
+export function dayStandings({ mode, stepsById, memberIds, dayDone }) {
+  if (!isRankingMode(mode)) throw new Error('Unknown ranking mode');
+  const scores = dayDone && mode !== RANKING_MODES.TOTAL_STEPS;
+  return rankDay(stepsById, memberIds).map((r) => {
+    const counts = scores && r.value > 0;
+    return {
+      ...r,
+      points: counts && mode === RANKING_MODES.POINTS_321 ? pointsForRank(r.rank) : 0,
+      wonDay: counts && mode === RANKING_MODES.DAYS_WON && r.rank === 1,
+    };
+  });
+}
+
 function safeSteps(value) {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
