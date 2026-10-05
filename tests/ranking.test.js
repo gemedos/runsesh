@@ -1,4 +1,4 @@
-import { competitionStandings, isStepScoring, pointsForRank, rankDay, rankEntries } from '../js/rules/ranking.js';
+import { competitionStandings, dayStandings, isStepScoring, pointsForRank, rankDay, rankEntries } from '../js/rules/ranking.js';
 import { eq, test } from './harness.js';
 
 const ids = ['a', 'b', 'c', 'd'];
@@ -48,4 +48,19 @@ test('unknown mode throws', () => {
 
 test('step scoring accepts only the two documented values', () => {
   eq(['plain', 'elevation_bonus', 'bonus', '', null].map(isStepScoring), [true, true, false, false, false]);
+});
+
+test('dayStandings: one day ranked, points and day wins only for finished days', () => {
+  const stepsById = { a: 9000, b: 12000, c: 9000, d: 0 };
+  const ids = ['a', 'b', 'c', 'd'];
+  const points = dayStandings({ mode: 'points_321', stepsById, memberIds: ids, dayDone: true });
+  eq(points.map((r) => [r.id, r.rank, r.points]), [['b', 1, 3], ['a', 2, 2], ['c', 2, 2], ['d', 4, 0]]);
+  const won = dayStandings({ mode: 'days_won', stepsById, memberIds: ids, dayDone: true });
+  eq(won.filter((r) => r.wonDay).map((r) => r.id), ['b']);
+  const running = dayStandings({ mode: 'points_321', stepsById, memberIds: ids, dayDone: false });
+  eq(running.map((r) => r.points), [0, 0, 0, 0]);
+  const total = dayStandings({ mode: 'total_steps', stepsById, memberIds: ids, dayDone: true });
+  eq(total.map((r) => [r.id, r.value, r.points, r.wonDay]), [['b', 12000, 0, false], ['a', 9000, 0, false], ['c', 9000, 0, false], ['d', 0, 0, false]]);
+  const empty = dayStandings({ mode: 'days_won', stepsById: {}, memberIds: ['a', 'b'], dayDone: true });
+  eq(empty.filter((r) => r.wonDay).length, 0);
 });

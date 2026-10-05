@@ -1003,6 +1003,9 @@ button.cal-day { cursor: pointer; }
 .cal-detail:empty { display: none; }
 .cal-result { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
 .cal-result-title { margin: 6px 0 0; font-size: 1.05rem; }
+.cal-sub-title { margin: 10px 0 0; font-size: var(--fs-small); font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+.cal-overall { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px dashed var(--line); }
+.rank-row--left { opacity: 0.6; }
 
 .hall-you { margin: 0; font-weight: 600; }
 .hall-you--empty { color: var(--orange); }
