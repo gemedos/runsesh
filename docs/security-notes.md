@@ -18,7 +18,9 @@ These run in the database, so they apply even to direct API calls:
 - **Row Level Security:** a user can only read, insert and update **their own** rows. Nobody
   can write steps for someone else or change another person's profile.
 - **Range check:** `steps` must be a whole number from 0 to 100,000 per day.
-- **Source check:** `source` must be one of `manual`, `health_connect`, `shortcut`.
+- **Source check:** `source` must be one of `manual`, `health_connect`, `shortcut`, `admin`.
+  `admin` marks totals the project owner entered in the dashboard (migration 15): players can
+  neither write `admin` nor overwrite an `admin` row through the API.
 - **Time window:** only days from 3 days before today to 1 day after today (UTC) can be
   written or changed, so old results cannot be rewritten later.
 - **No deletes and no key changes:** clients cannot delete rows or move a row to another

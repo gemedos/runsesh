@@ -513,7 +513,7 @@ export const STRINGS = Object.freeze({
     historyTitle: 'Your last 7 days',
     historyEmpty: 'No steps saved yet.',
     historyFailed: 'Could not load your history.',
-    sources: { manual: 'manual', health_connect: 'Health Connect', shortcut: 'Shortcut' },
+    sources: { manual: 'manual', health_connect: 'Health Connect', shortcut: 'Shortcut', admin: 'added by admin' },
     privacy: 'Only daily step totals are saved. Steps are self-reported.',
     privacyLink: 'Privacy policy',
   },
