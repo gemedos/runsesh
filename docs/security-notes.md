@@ -103,6 +103,36 @@ What it does **not** protect against:
   aggregate.
 - **Backfill:** only today and the last 3 days are accepted, so older history cannot be sent.
 
+## Usertags and friends (migrations 17–18, approved 2026-10-06)
+- **Usertags** (`profiles.handle`): unique, 3–20 of `a-z 0-9 . _`, generated for every account and
+  changeable by the owner (column grant + the existing own-row update policy).
+- **Search** (`search_usertags`): prefix of 2+ characters, max 10 results, **returns only
+  usertags**, 60 searches per user per hour. Accepted trade-off (chosen by the owner): any
+  signed-in user can discover usertags by guessing prefixes. A user can also learn whether a
+  usertag exists by trying to take it.
+- **Friendships** (`public.friendships`): clients only read rows that involve them; every change
+  goes through SECURITY DEFINER functions that take the caller from `auth.uid()` and accept only
+  a usertag. 30 invites per user per day. Invites need acceptance; either side can decline,
+  cancel or remove. Deleted with either account.
+- **Visibility:** friends can read each other's profile and daily steps (new permissive policies
+  using `private.are_friends`), like party members already can; nobody can write another's
+  rows. A non-friend outside the party sees only the usertag in the app (the database does not
+  return anything else to them).
+- **IDs never in URLs:** the viewed profile is kept in memory (`#/user`).
+
+## Memories (migration 19, approved 2026-10-06)
+- The first content one player uploads that others see. Visible to the owner, their party
+  members and their friends (`private.can_view_user`), through 1-hour signed URLs from a private
+  bucket. Former friends / party members lose access immediately.
+- **Upload order is enforced:** the row is inserted first (owner, "today" window, max 3 per day,
+  serialised per player and day), and storage accepts a file only at the path of one of the
+  uploader's own rows. So the API cannot be used to store unlimited files.
+- Photos are re-encoded in the browser (JPEG, max 1600 px), which removes EXIF/GPS metadata; the
+  bucket only takes JPEG up to 2 MB. Memories are never updated, only deleted by their owner.
+- Not covered: moderation (only the owner can delete), and **files left in storage when an account
+  is deleted** (rows cascade; the files need the account-deletion clean-up, not built yet). The
+  browser HTTP cache may keep a viewed photo until its signed URL expires.
+
 ## Parties and invite links (CLAUDE.md exception, approved 2026-10-05)
 - **One party per user** (primary key on `party_members.user_id`), one leader per party (unique
   index). Membership only changes through database functions that check the caller's role:

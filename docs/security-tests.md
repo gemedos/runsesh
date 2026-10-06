@@ -318,6 +318,91 @@ await C.rpc('join_party', { p_code: 'x'.repeat(24) });            // 'invalid_in
     no EXIF/GPS block (re-encoded in the browser). A non-image renamed to `.jpg` is rejected.
 19. Files over 2 MB or with another content type are rejected by the bucket itself.
 
+## 6e. Usertags and friends (migrations 17 and 18)
+Use the console session from "Setup" with **A** and **B** signed in as `A` and `B`
+(`const B = client(); await B.auth.signInWithPassword({ email: '<user B email>', password: '<user B password>' });`).
+**A and B must not be in the same party** for steps 3–5. `client()` is anon.
+
+1. **Usertags exist and are unique:**
+   ```js
+   const { data: a } = await A.from('profiles').select('handle').eq('id', A_ID).single();   // a.handle like 'name1234'
+   await A.from('profiles').update({ handle: 'a_test.01' }).eq('id', A_ID).select('handle'); // ok
+   await B.from('profiles').update({ handle: 'A_TEST.01' }).eq('id', B_ID);  // expect error 23514 (uppercase not allowed)
+   await B.from('profiles').update({ handle: 'a_test.01' }).eq('id', B_ID);  // expect error 23505 (taken)
+   await B.from('profiles').update({ handle: 'no spaces' }).eq('id', B_ID);  // expect error 23514
+   await A.from('profiles').update({ handle: 'stolen1' }).eq('id', B_ID).select(); // expect data: [] (not your row)
+   ```
+2. **Search returns only usertags, is limited, and needs a session:**
+   ```js
+   await A.rpc('search_usertags', { p_prefix: 'a' });           // expect { status: 'invalid', handles: [] }
+   const { data: s } = await B.rpc('search_usertags', { p_prefix: '@A_te' }); // expect status 'ok', handles includes 'a_test.01'
+   Object.keys(s);                                              // expect ['status', 'handles'] only: no ids, names or avatars
+   await client().rpc('search_usertags', { p_prefix: 'a_t' });  // anon: expect an error (permission denied)
+   ```
+   Calling it 61 times within an hour as one user returns `status: 'rate_limited'`.
+3. **Before being friends, A cannot read B:**
+   ```js
+   await A.from('profiles').select('display_name, avatar').eq('id', B_ID);       // expect data: []
+   await A.from('daily_steps').select('*').eq('user_id', B_ID);                 // expect data: []
+   await A.from('friendships').insert({ requester: A_ID, addressee: B_ID, status: 'accepted' }); // expect error 42501
+   ```
+   In the app (as A), search B's usertag and open it: only **@usertag, a lock and "Send friend invite"**.
+4. **Invite and accept:**
+   ```js
+   await A.rpc('send_friend_invite', { p_handle: '<B usertag>' });  // expect 'sent'
+   await A.rpc('send_friend_invite', { p_handle: '<B usertag>' });  // expect 'already_sent'
+   await A.rpc('send_friend_invite', { p_handle: 'a_test.01' });     // expect 'self'
+   await B.rpc('my_friend_requests');                               // expect [{ handle: 'a_test.01', direction: 'in', ... }] only
+   await B.from('friendships').update({ status: 'accepted' }).eq('requester', A_ID); // expect error 42501
+   await B.rpc('respond_friend_invite', { p_handle: 'a_test.01', p_accept: true });  // expect 'accepted'
+   await A.from('profiles').select('display_name, handle').eq('id', B_ID);          // expect B's row
+   await A.from('daily_steps').select('day, steps').eq('user_id', B_ID);            // expect B's days
+   await A.from('daily_steps').update({ steps: 1 }).eq('user_id', B_ID).select();   // expect data: [] (read only)
+   ```
+5. **Remove ends access immediately:**
+   ```js
+   await A.rpc('remove_friend', { p_handle: '<B usertag>' });   // expect 'removed'
+   await A.from('profiles').select('id').eq('id', B_ID);        // expect data: []
+   ```
+6. **Invite limit:** the 31st `send_friend_invite` by one user within a day returns `'rate_limited'`.
+7. **Day ranking:** in the app (as A, friends with B), Profile → Calendar → tap a day: "You vs your
+   friends" lists A and B with that day's steps; the calendar shows A's place on days A walked.
+
+## 6f. Memories (migration 19)
+Console session with **A** and **B** (as in 6e); **C** is a third test account that is neither
+A's friend nor in A's party. Use a small JPEG `blob` (for example from
+`await (await fetch('icons/icon-192.png')).blob()` re-encoded by posting through the app first).
+
+1. **Post through the app** (as A): Profile → Memories → Add a memory. The photo appears under
+   "Today", the counter shows "2 of 3 left today". In the dashboard: one `memories` row for A and a
+   file `memories/<A id>/<uuid>.jpg`. Download it: the file has **no EXIF/GPS** (re-encoded JPEG).
+2. **Limit:** post 3 photos, the 4th says "You already posted 3 memories today"; directly:
+   ```js
+   await A.from('memories').insert({ id: crypto.randomUUID(), user_id: A_ID, day: today, path: `${A_ID}/${crypto.randomUUID()}.jpg` });
+   // expect error 23514 (memory_limit)
+   ```
+3. **Only today, only own rows:**
+   ```js
+   await A.from('memories').insert({ user_id: A_ID, day: shift(-3), path: `${A_ID}/${crypto.randomUUID()}.jpg` }); // expect error 42501
+   await A.from('memories').insert({ user_id: B_ID, day: today, path: `${B_ID}/${crypto.randomUUID()}.jpg` });   // expect error 42501
+   await A.from('memories').update({ day: shift(-1) }).eq('user_id', A_ID);                                      // expect error 42501
+   ```
+4. **No files without a row:**
+   ```js
+   await A.storage.from('memories').upload(`${A_ID}/${crypto.randomUUID()}.jpg`, blob, { contentType: 'image/jpeg' }); // expect an error (RLS)
+   await A.storage.from('memories').upload(`${B_ID}/${crypto.randomUUID()}.jpg`, blob, { contentType: 'image/jpeg' }); // expect an error
+   ```
+   Uploading a PNG or a file over 2 MB to an own row's path is refused by the bucket.
+5. **Who can see:** as B (A's friend or party member) `await B.from('memories').select('path').eq('user_id', A_ID)`
+   lists A's memories and `createSignedUrl` works for them. As C both return nothing / an error.
+   Logged out (`client()`): `select` gives error 42501. After A removes B as a friend (and they share
+   no party), B sees nothing any more.
+6. **Delete:** A deletes a memory in the app: the row and the file are gone; B cannot delete A's:
+   `await B.from('memories').delete({ count: 'exact' }).eq('user_id', A_ID)` → `count: 0`;
+   `await B.storage.from('memories').remove([<A path>])` removes nothing.
+7. **Race page:** A's party members see A's photos of today in "Today's memories"; tapping one opens
+   it full size with A's avatar and @usertag. Nothing is cached by the service worker (cross-origin).
+
 ## 7. Logout clears everything
 1. Log in, browse every screen, save steps and an avatar.
 2. Log out (Profile → Login / Log out, or Account → Log out).

@@ -2,8 +2,8 @@
 // The password is never shown or hinted at; only a "new password" field exists.
 
 import { changePassword, signOut } from '../../auth/session.js';
-import { checkPassword, cleanDisplayName, PASSWORD_MIN } from '../../auth/rules.js';
-import { saveDisplayName } from '../../state/store.js';
+import { checkPassword, cleanDisplayName, cleanHandle, PASSWORD_MIN } from '../../auth/rules.js';
+import { saveDisplayName, saveHandle } from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
 import { card, screenHeader } from '../components.js';
 import { h } from '../dom.js';
@@ -48,6 +48,30 @@ export function renderAccount({ state, toast }) {
     if (ok) toast(T.nameSaved); else nameError.textContent = T.nameFailed;
   });
 
+  // Usertag (@handle): unique, 3–20 characters a-z 0-9 . _ (the database checks both).
+  const handleInput = h('input', { attrs: { id: 'acc-handle', type: 'text', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', maxlength: 21, value: profile.handle || '' } });
+  const handleError = h('p', { class: 'field-error', attrs: { 'aria-live': 'polite' } });
+  const handleBtn = h('button', { class: 'btn btn-secondary', text: T.saveHandle, attrs: { type: 'submit' } });
+  const handleForm = h('form', { class: 'form', attrs: { novalidate: true } },
+    h('div', { class: 'field' },
+      h('label', { attrs: { for: 'acc-handle' }, text: T.editHandle }),
+      h('div', { class: 'handle-input' }, h('span', { class: 'handle-at', attrs: { 'aria-hidden': 'true' }, text: '@' }), handleInput),
+      h('p', { class: 'hint', text: T.handleHint }),
+      handleError,
+    ),
+    handleBtn,
+  );
+  handleForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    handleError.textContent = '';
+    if (!cleanHandle(handleInput.value)) { handleError.textContent = T.handleInvalid; return; }
+    handleBtn.disabled = true;
+    const res = await saveHandle(handleInput.value);
+    handleBtn.disabled = false;
+    if (res === 'ok') toast(T.handleSaved);
+    else handleError.textContent = res === 'taken' ? T.handleTaken : res === 'invalid' ? T.handleInvalid : T.handleFailed;
+  });
+
   // Change password (new password only; nothing about the current one is displayed)
   const pwInput = h('input', { attrs: { id: 'acc-password', type: 'password', autocomplete: 'new-password', minlength: PASSWORD_MIN } });
   const pwError = h('p', { class: 'field-error', attrs: { 'aria-live': 'polite' } });
@@ -81,9 +105,11 @@ export function renderAccount({ state, toast }) {
     card(T.cardTitle,
       h('dl', { class: 'kv' },
         h('dt', { text: T.name }), h('dd', { text: profile.displayName || T.noName }),
+        h('dt', { text: T.handle }), h('dd', { text: profile.handle ? `@${profile.handle}` : '–' }),
         h('dt', { text: T.email }), h('dd', { text: state.auth.email }),
       ),
       nameForm,
+      handleForm,
     ),
     card(T.changePassword, pwForm),
     card(T.sessionTitle, ...sessionButtons()),

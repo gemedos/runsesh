@@ -1011,3 +1011,242 @@ button.cal-day { cursor: pointer; }
 .hall-you--empty { color: var(--orange); }
 .hall-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .hall-row { display: flex; align-items: center; gap: 16px; padding: 10px 6px 6px 14px; }
+
+/* =========================================================================
+   Profile v3 (docs/design.md §11, inspo "profile structure")
+   ========================================================================= */
+
+:root, :root[data-theme='dark'] { --ring: #3fd06a; --ring-track: rgba(255, 255, 255, 0.07); --dot: #2a2a33; --halo: rgba(34, 195, 179, 0.35); }
+:root[data-theme='light'] { --ring: #2fbf56; --ring-track: rgba(0, 0, 0, 0.06); --dot: #e6e9ef; --halo: rgba(15, 158, 144, 0.3); }
+
+/* Avatars and names that open a profile: no button chrome, keep the wrapped layout. */
+.person-link {
+  margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: inherit;
+  cursor: pointer; border-radius: 12px;
+}
+.person-link:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+button.party-member { display: flex; }
+.member-link { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.rank-row > .person-link:first-child { flex: none; }
+
+/* Header: scenic strip, @usertag, round white buttons, big avatar overlapping the edge. */
+.ph-hero {
+  position: relative;
+  height: 150px;
+  margin: -14px calc(-1 * var(--gutter)) 0;
+  -webkit-mask-image: linear-gradient(#000 70%, transparent);
+  mask-image: linear-gradient(#000 70%, transparent);
+}
+.ph-handle {
+  position: absolute; left: var(--gutter); top: 22px;
+  font-weight: 700; font-size: 1.35rem; color: #fff;
+  text-shadow: 0 2px 0 var(--outline), 0 0 10px rgba(0, 0, 0, 0.35);
+}
+.ph-actions { position: absolute; right: var(--gutter); top: 14px; display: flex; gap: 10px; }
+.ph-round {
+  display: grid; place-items: center;
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 0; background: #fff; color: #15151b;
+  font: inherit; font-size: 1.6rem; font-weight: 700; line-height: 1; text-decoration: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); cursor: pointer;
+}
+.ph-round:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.ph-round:active { transform: scale(0.94); }
+.ph-back { position: absolute; left: var(--gutter); top: 14px; }
+.ph-round-icon { width: 24px; height: 24px; }
+.ph-round--outline { background: var(--surface-2); color: var(--ink); border: 2px solid var(--line); box-shadow: none; width: 52px; height: 52px; }
+.ph-head { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: -66px; }
+.ph-avatar { display: block; border-radius: 50%; }
+.ph-avatar .avatar-badge--xl { border-color: var(--bg); box-shadow: 0 0 0 3px var(--line); }
+.ph-buttons { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.ph-edit { min-width: 170px; justify-content: center; font-size: 1.05rem; }
+.ph-callout-slot { align-self: stretch; margin-top: 14px; }
+.ph-callout-slot:empty { display: none; }
+.callout--link { color: var(--ink); text-decoration: none; box-shadow: 0 5px 0 -1px var(--teal-bg), 0 6px 0 0 var(--teal); }
+.callout--link:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.callout-chevron {
+  display: grid; place-items: center; flex: none;
+  width: 36px; height: 36px; margin-left: auto; border-radius: 50%;
+  background: var(--surface-2); color: var(--ink-soft); font-size: 1.4rem; font-weight: 700;
+}
+
+/* Icon tab bar with a short thick underline on the active tab. */
+.profile-content { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.ptabs { display: flex; justify-content: space-around; border-bottom: 1px solid var(--line); }
+.ptab {
+  position: relative; display: grid; place-items: center;
+  flex: 1; height: 56px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer;
+}
+.ptab::after {
+  content: ''; position: absolute; bottom: -1px; left: 50%;
+  width: 44px; height: 4px; margin-left: -22px; border-radius: 4px;
+  background: var(--ink); transform: scaleX(0); transition: transform 160ms ease-out;
+}
+.ptab--active { color: var(--ink); }
+.ptab--active::after { transform: scaleX(1); }
+.ptab:focus-visible { outline: 3px solid var(--orange); outline-offset: -3px; border-radius: 12px; }
+.ptab-icon { width: 28px; height: 28px; }
+.ptab-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 36px 12px; text-align: center; }
+.ptab-empty-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--surface-2); color: var(--ink-soft); }
+.ptab-empty-icon .ptab-icon { width: 32px; height: 32px; }
+.ptab-empty-title { margin: 6px 0 0; font-weight: 700; font-size: 1.15rem; }
+
+/* Calendar: month title outside a rounded card; number above a circle. */
+.sc { display: flex; flex-direction: column; gap: 12px; }
+.sc-head { display: flex; align-items: center; justify-content: space-between; }
+.sc-month { margin: 0; font-size: 1.5rem; font-weight: 700; text-transform: capitalize; }
+.sc-navs { display: flex; gap: 6px; }
+.sc-nav {
+  width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 1.3rem; font-weight: 700; cursor: pointer;
+}
+.sc-nav:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.sc-card { padding: 16px 8px 10px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); }
+.sc-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 10px; }
+.sc-weekday { text-align: center; font-weight: 700; font-size: var(--fs-small); color: var(--ink-soft); padding-bottom: 8px; }
+.sc-day {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit;
+}
+button.sc-day { cursor: pointer; }
+button.sc-day:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; border-radius: 14px; }
+.sc-num { font-size: var(--fs-small); font-weight: 600; color: var(--ink-soft); line-height: 1.2; position: relative; }
+.sc-num--today { color: var(--ink); font-weight: 700; }
+.sc-num--today::after {
+  content: ''; position: absolute; left: 50%; bottom: -3px;
+  width: 14px; height: 3px; margin-left: -7px; border-radius: 3px; background: var(--ring);
+}
+.sc-dot {
+  position: relative; display: grid; place-items: center;
+  width: min(46px, 11vw); aspect-ratio: 1; border-radius: 50%;
+  background: var(--dot);
+}
+.sc-dot--lock { color: #15151b; }
+.sc-lock {
+  width: 62%; height: 62%; padding: 5px; border-radius: 10px;
+  background: #ffb03b; border: 2px solid #15151b; box-sizing: border-box;
+}
+.sc-dot--goal { box-shadow: 0 0 0 4px var(--halo); }
+.sc-ring { position: absolute; inset: -3px; width: calc(100% + 6px); height: calc(100% + 6px); }
+.sc-ring-track { fill: none; stroke: var(--ring-track); stroke-width: 3.5; }
+.sc-ring-fill { fill: none; stroke: var(--ring); stroke-width: 3.5; stroke-linecap: round; }
+.sc-face { position: relative; font-weight: 700; font-size: 0.78rem; color: var(--ink); }
+.sc-face--q { font-size: 1.25rem; }
+.sc-face .rank { position: static; transform: scale(0.82); }
+.sc-day[aria-pressed='true'] .sc-dot { outline: 3px solid var(--orange); outline-offset: 3px; }
+
+/* Day summary under the calendar. */
+.sc-summary:empty { display: none; }
+.sc-sum { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); }
+.sc-sum-date { margin: 0; font-weight: 700; font-size: 1.1rem; text-transform: capitalize; }
+.sc-sum-steps { margin: 0; color: var(--ink-soft); }
+.sc-sum-steps b { color: var(--ink); font-size: 1.6rem; }
+.sc-sum-goal { margin: 0; color: var(--ring); font-weight: 600; font-size: var(--fs-small); }
+.sc-sum-rank { display: flex; flex-direction: column; gap: 6px; }
+
+/* Bottom sheet (inspo "on two runners collision choose profile pop up"). */
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(10, 10, 14, 0.55);
+}
+.sheet {
+  width: 100%; max-width: 560px; max-height: 70vh; overflow: auto;
+  padding: 10px var(--gutter) 24px;
+  border-radius: 28px 28px 0 0; background: var(--surface);
+  animation: sheet-in 0.2s ease-out both;
+}
+.sheet:focus { outline: none; }
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
+.sheet-grip { display: block; width: 48px; height: 5px; margin: 0 auto 14px; border-radius: 5px; background: var(--line); }
+.sheet-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sheet-row {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  padding: 10px 4px; border: 0; border-radius: 16px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.sheet-row:hover { background: var(--surface-2); }
+.sheet-row:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.sheet-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sheet-row-name { font-weight: 600; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-row-side { display: flex; flex-direction: column; align-items: flex-end; font-size: 1.05rem; }
+.sheet-row-ago { font-size: var(--fs-small); color: var(--ink-soft); }
+
+@media (min-width: 600px) {
+  .ph-hero { margin-left: 0; margin-right: 0; margin-top: 0; border-radius: 28px 28px 0 0; }
+}
+@media (min-width: 1024px) {
+  .page-profile .profile-content { margin-top: 0; }
+  .sheet-backdrop { align-items: center; }
+  .sheet { border-radius: 28px; }
+}
+
+/* Usertags and friends (docs/design.md §11) */
+.handle-input { display: flex; align-items: center; gap: 0; min-height: 50px; border-radius: 16px; border: 2px solid var(--line); background: var(--input-bg); }
+.handle-input:focus-within { border-color: var(--orange); }
+.handle-at { padding-left: 12px; font-weight: 700; color: var(--ink-soft); }
+.handle-input input[type='text'], .handle-input input[type='search'] {
+  flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px 8px 4px;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none; outline: none; font: inherit; font-size: 16px; color: var(--ink);
+}
+.handle-input input::-webkit-search-cancel-button { display: none; }
+.ph-handle--shifted { left: calc(var(--gutter) + 60px); top: 26px; }
+.ph-avatar--locked {
+  display: grid; place-items: center; width: 116px; height: 116px;
+  border-radius: 50%; background: var(--surface-2); color: var(--ink-soft);
+  border: 5px solid var(--bg); box-shadow: 0 0 0 2px var(--line);
+}
+.ph-avatar--locked .ptab-icon { width: 44px; height: 44px; }
+.tag--friend { background: var(--teal-bg); color: var(--teal); font-weight: 700; }
+.sheet-row-handle { color: var(--ink-soft); font-size: var(--fs-small); }
+
+.fr { display: flex; flex-direction: column; gap: 14px; }
+.fr-section { display: flex; flex-direction: column; gap: 6px; }
+.fr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fr-list > .hint { padding: 6px 0; }
+.fr-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.fr-row:last-child { border-bottom: 0; }
+.fr-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fr-handle { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.fr-handle { text-align: left; }
+.fr-person { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+
+/* Memories (docs/design.md §11) */
+.memories { display: flex; flex-direction: column; gap: 16px; }
+.memory-add { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.memory-add .btn { cursor: pointer; }
+.memory-add input:focus-visible + .btn { outline: 3px solid var(--orange); outline-offset: 2px; }
+.btn--disabled { opacity: 0.5; pointer-events: none; }
+.btn--busy { opacity: 0.7; pointer-events: none; }
+.memory-days { display: flex; flex-direction: column; gap: 14px; }
+.memory-day { display: flex; flex-direction: column; gap: 8px; }
+.memory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.memory-tile {
+  position: relative; aspect-ratio: 1; padding: 0; border: 0; border-radius: 14px; overflow: hidden;
+  background: var(--surface-2); cursor: pointer;
+}
+.memory-tile:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.memory-thumb { display: block; width: 100%; height: 100%; object-fit: cover; }
+.memory-missing { display: block; width: 100%; height: 100%; background: var(--surface-2); }
+
+.memory-viewer { display: flex; flex-direction: column; gap: 12px; }
+.memory-full { display: block; width: 100%; max-height: 60vh; object-fit: contain; border-radius: 18px; background: #000; }
+.memory-full.memory-missing { height: 240px; }
+.memory-viewer-bar { display: flex; align-items: center; gap: 12px; }
+.memory-owner { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+
+/* Race page strip */
+.memory-strip { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px; scroll-snap-type: x mandatory; }
+.memory-card {
+  position: relative; flex: none; width: 128px; aspect-ratio: 3 / 4; padding: 0;
+  border: 2px solid var(--line); border-radius: 18px; overflow: hidden; background: var(--surface-2);
+  cursor: pointer; scroll-snap-align: start;
+}
+.memory-card:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.memory-card-photo { display: block; width: 100%; height: 100%; object-fit: cover; }
+.memory-card-who {
+  position: absolute; left: 6px; right: 6px; bottom: 6px;
+  display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px;
+  border-radius: 999px; background: rgba(10, 10, 14, 0.62); color: #fff;
+}
+.memory-card-who .avatar-badge--sm { width: 26px; height: 26px; }
+.memory-card-name { font-size: var(--fs-micro); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

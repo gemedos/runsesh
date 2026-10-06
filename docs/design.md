@@ -302,3 +302,85 @@ validated against a fixed list (`COMPETITION_THEMES` in `js/state/competition.js
 | Summer | `img/comp-summer.svg`: sun, sea, beach, palm tree, umbrella, ball, gulls | turquoise |
 | Fall (spooky) | `img/comp-fall.svg`: purple night, big moon, bats, haunted tree, ghost, gravestones, jack-o'-lanterns, spider | orange |
 | Winter | `img/comp-winter.svg`: icicles, snowflakes, snowy pines, snowman, sled tracks | icy blue |
+
+## 11. Profile v3 (inspo: "profile structure", "on two runners collision choose profile pop up")
+
+### Elements studied in "profile structure"
+1. **Scenic header**: an illustrated landscape strip at the very top that fades into the page background.
+2. **@usertag** top-left over the header, bold and dark.
+3. **Two round white action buttons** top-right: share (arrow out of a tray) and settings (gear).
+4. **Large round avatar** centred, overlapping the bottom of the header, with a soft grey ring.
+5. **Display name**: large, heavy, centred.
+6. **"Joined September 2026"**: medium-weight grey subtitle.
+7. **Action row**: outlined "Edit profile" pill and a round outlined hanger button (avatar wardrobe).
+8. **Call-out card**: white card with a teal glow along the bottom edge, teal rounded-square icon,
+   sticker-outlined title, teal subtitle, chevron in a grey circle.
+9. **Icon tab bar**: four icon-only tabs spread evenly; the active one has a short thick dark
+   underline; a hairline divider under the bar.
+10. **Month title** ("October 2026"): bold, left-aligned, outside the card.
+11. **Calendar card**: white rounded card with a hairline border. Weekday row Sun–Sat (Sunday
+    first). Each day is a small grey number **above** a ~48 px circle:
+    - empty pale-grey circle: future day or no data;
+    - **lock badge** on a pale circle: day before the account existed;
+    - **"?"** and a short green arc over the number: today, still running;
+    - **rank starburst** (1st, 2nd…) inside the circle: that day's place;
+    - **green progress ring** drawn partly round the circle: how far towards the daily goal;
+      a full ring plus a pale teal halo when the goal was reached.
+12. Bottom navigation with an orange pill on the active "Me" tab (we keep our own nav).
+
+### Elements studied in "on two runners collision choose profile pop up"
+1. Dimmed race scene behind; two runners drawn on top of each other with a "547 – 626" bubble.
+2. **Bottom sheet** with a grab handle, rounded top corners, light background.
+3. **One row per runner**: round avatar head, display name (bold), **@usertag** (grey) under it,
+   steps right-aligned bold, and "how long ago it was updated" ("12m", "5s") below.
+4. Tapping a row opens that runner's profile.
+
+### runsesh Profile v3
+```
+┌──────────────────────────────┐
+│ @usertag          (⇪) (⚙)    │  header scene, fades into the page
+│            ( avatar )        │  big avatar overlaps the header edge
+│        Display Name          │
+│     Joined September 2026    │
+│   [ Edit profile ]  (hanger) │  own profile only
+│ ┌ (▢) Connect your phone   › ┐│  teal call-out, only while no phone is connected
+│ ├──────────────────────────┤ │
+│   [▦ calendar] [🖼 memories] [≡ settings]   icon tabs, underline on the active one
+│ October 2026                 │
+│ ┌ Su Mo Tu We Th Fr Sa ─────┐│
+│ │ 1    2    3   …           ││  number above a circle
+│ │(🔒) (🔒) (1st)(2nd)( ? )() ││  ring = progress to 10,000 steps
+│ └───────────────────────────┘│
+│ ┌ Tue 5 Oct ─ quick summary ┐│  tap a day: sheet with that day's result
+│ │ 9,120 steps · 2nd of 4     ││
+│ │ (ranking of the party)     ││
+│ └───────────────────────────┘│
+└──────────────────────────────┘
+```
+- **Tabs:** (1) Calendar, the user's own steps day by day, regardless of parties or competitions;
+  (2) Memories (picture icon), the photos the user posted, newest first, grouped by day;
+  (3) Settings (list icon), today's settings and party lists. The gear button opens tab 3;
+  the share button is left out (nothing public to share).
+- **Calendar day states:** lock (before the account's `created_at`), empty (future or no data),
+  "?" (today), a step count or a rank sticker inside a progress ring towards **10,000 steps**.
+  The rank sticker shows the user's place among their **current** party members that day;
+  without a party the circle shows the abbreviated count ("8.4k").
+- **Day summary** (sheet under the calendar): date, steps, % of goal, and if the user had a
+  party: everyone's steps that day ranked, plus the competition running that day if any.
+- **Another user's profile:** tapping any avatar or name opens the same page read-only: no
+  Edit, no hanger, no call-out, no Settings tab. Only party members can be opened.
+- **Collision sheet on the race page:** when runners overlap, tapping opens the bottom sheet
+  from the inspo (avatar, name, @usertag, steps, "updated 12m ago"); a row opens that profile.
+- **Memories on the race page:** a strip "Today's memories" with the photos party members
+  posted today; tap to view full size with the owner's avatar and @usertag.
+
+### Revision (approved 2026-10-06)
+- **Tabs:** Calendar · Memories · **Friends** · Settings (own profile); Calendar · Memories (others).
+- **Friends tab:** search players by @usertag (suggestions as you type, showing only the @usertag),
+  send / accept / decline / cancel invites, remove friends.
+- **Who can open a profile's Calendar and Memories:** friends **or** party members. Anyone else sees
+  **only the @usertag**, a lock ("You cannot view this until you are friends") and **Send friend invite**.
+- **Day summary:** the ranking of **you vs all your friends** that day (not the party).
+- **Daily goal (10,000):** shown only in the profile calendar.
+- **Usertags:** 3–20 characters `a-z 0-9 . _`, unique ignoring case, auto-generated, changeable.
+- **Memories:** 3 photos per day, today only, no captions, kept until the owner deletes them.

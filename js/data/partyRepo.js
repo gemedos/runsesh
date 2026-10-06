@@ -3,6 +3,7 @@
 // RLS limits every read to the caller's own party. The UI hiding buttons is not security.
 
 import { validateAvatar } from '../avatar/avatar.js';
+import { HANDLE_RE } from '../auth/rules.js';
 import { getSupabase } from '../supabaseClient.js';
 
 export const INVITE_CODE_RE = /^[A-Za-z0-9_-]{24}$/;
@@ -40,7 +41,7 @@ export async function fetchMyParty(userId) {
   if (partyRes.error || !partyRes.data || membersRes.error) throw new Error('party');
 
   const ids = membersRes.data.map((m) => m.user_id);
-  const { data: profiles, error: profError } = await sb.from('profiles').select('id, display_name, avatar').in('id', ids);
+  const { data: profiles, error: profError } = await sb.from('profiles').select('id, display_name, avatar, handle').in('id', ids);
   if (profError) throw new Error('party');
   const byId = new Map((profiles || []).map((p) => [p.id, p]));
 
@@ -56,6 +57,7 @@ export async function fetchMyParty(userId) {
       return Object.freeze({
         id: m.user_id,
         name: typeof p.display_name === 'string' ? p.display_name : null,
+        handle: typeof p.handle === 'string' && HANDLE_RE.test(p.handle) ? p.handle : null,
         avatar: validateAvatar(p.avatar), // validated again; null -> default avatar
         role: m.role === 'leader' ? 'leader' : 'member',
         joinedAt: m.joined_at,

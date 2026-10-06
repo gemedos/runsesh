@@ -14,6 +14,7 @@ import { getLeader, getPartyMembers, isLeader, refreshParty } from '../../state/
 import { STRINGS } from '../../strings.js';
 import { avatarBadge, card, screenHeader } from '../components.js';
 import { h, onMount } from '../dom.js';
+import { personButton } from '../profileLink.js';
 
 const P = STRINGS.party;
 
@@ -231,8 +232,10 @@ export function renderMembers({ state, navigate, toast }) {
       if (res.ok) refreshParty();
     })) : null;
     return h('li', { class: 'member-row' },
-      avatarBadge(m.avatar, { size: 'sm' }),
-      h('span', { class: 'rank-name', text: m.isMe ? M.you(label) : label }),
+      personButton(m.id, STRINGS.profile.openProfile(label), [
+        avatarBadge(m.avatar, { size: 'sm' }),
+        h('span', { class: 'rank-name', text: m.isMe ? M.you(label) : label }),
+      ], 'member-link'),
       m.role === 'leader' ? h('span', { class: 'tag tag--gold', text: M.leader }) : null,
       removeBtn,
     );

@@ -1,7 +1,7 @@
 // Service worker: caches ONLY the static app shell. No user data, no API responses.
 // Bump CACHE_VERSION whenever any file in APP_SHELL changes.
 
-const CACHE_VERSION = 'v17';
+const CACHE_VERSION = 'v20';
 const CACHE_NAME = `runsesh-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -36,7 +36,9 @@ const APP_SHELL = [
   './js/config.js',
   './js/data/competitionData.js',
   './js/data/competitionRepo.js',
+  './js/data/friendsRepo.js',
   './js/data/ingestTokenRepo.js',
+  './js/data/memoriesRepo.js',
   './js/data/partyRepo.js',
   './js/data/profileRepo.js',
   './js/data/settingsRepo.js',
@@ -57,8 +59,10 @@ const APP_SHELL = [
   './js/ui/competitionCalendar.js',
   './js/ui/components.js',
   './js/ui/dom.js',
+  './js/ui/friendsPanel.js',
   './js/ui/ingestTokens.js',
   './js/ui/installHint.js',
+  './js/ui/memories.js',
   './js/ui/pages/account.js',
   './js/ui/pages/auth.js',
   './js/ui/pages/avatarEditor.js',
@@ -69,6 +73,9 @@ const APP_SHELL = [
   './js/ui/pages/party.js',
   './js/ui/pages/profile.js',
   './js/ui/pages/race.js',
+  './js/ui/profileLink.js',
+  './js/ui/sheet.js',
+  './js/ui/stepsCalendar.js',
   './js/ui/theme.js',
   './js/util/date.js',
   './js/util/image.js',

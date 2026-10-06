@@ -33,6 +33,16 @@ export function cleanDisplayName(name) {
   return trimmed.length >= DISPLAY_NAME_MIN && trimmed.length <= DISPLAY_NAME_MAX ? trimmed : null;
 }
 
+/** Usertag: 3–20 characters a-z 0-9 . _ (stored lowercase; shown as @usertag). */
+export const HANDLE_RE = /^[a-z0-9._]{3,20}$/;
+
+/** @returns {string|null} the usertag without '@', lowercased, or null if it is not valid. */
+export function cleanHandle(input) {
+  if (typeof input !== 'string') return null;
+  const h = input.trim().replace(/^@/, '').toLowerCase();
+  return HANDLE_RE.test(h) ? h : null;
+}
+
 /** The browser's IANA time zone if it looks valid, otherwise 'UTC'. */
 export function browserTimezone() {
   try {
