@@ -6,6 +6,7 @@ import { STRINGS } from '../strings.js';
 import { formatDate } from '../util/date.js';
 import { formatSteps, rankedAvatar } from './components.js';
 import { h } from './dom.js';
+import { personButton } from './profileLink.js';
 
 const T = STRINGS.competition;
 
@@ -69,9 +70,10 @@ export function standingsList(competition, standings, members) {
     standings.map((row) => {
       const m = byId.get(row.id);
       if (!m) return null;
+      const name = m.name || STRINGS.members.unnamed;
       return h('li', { class: `rank-row${m.isMe ? ' rank-row--me' : ''}` },
-        rankedAvatar(m.avatar, row.rank),
-        h('span', { class: 'rank-name', text: m.name || STRINGS.members.unnamed }),
+        personButton(m.id, STRINGS.profile.openProfile(name), rankedAvatar(m.avatar, row.rank)),
+        personButton(m.id, STRINGS.profile.openProfile(name), h('span', { class: 'rank-name', text: name }), 'rank-main'),
         h('span', { class: 'rank-score', text: scoreLabel(competition.mode, row.value) }),
       );
     }),
@@ -83,8 +85,8 @@ export function resultsList(competition, results, meId) {
   if (!results || !results.length) return h('p', { class: 'hint', text: T.noResults });
   return h('ol', { class: 'ranking' },
     results.map((row) => h('li', { class: `rank-row${row.id === meId ? ' rank-row--me' : ''}` },
-      rankedAvatar(row.avatar || DEFAULT_AVATAR, row.rank),
-      h('span', { class: 'rank-name', text: row.name || T.someone }),
+      personButton(row.id, STRINGS.profile.openProfile(row.name || T.someone), rankedAvatar(row.avatar || DEFAULT_AVATAR, row.rank)),
+      personButton(row.id, STRINGS.profile.openProfile(row.name || T.someone), h('span', { class: 'rank-name', text: row.name || T.someone }), 'rank-main'),
       h('span', { class: 'rank-score', text: scoreLabel(competition.mode, row.value) }),
     )),
   );

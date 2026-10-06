@@ -4,12 +4,15 @@
 
 import { buildAvatarSvg } from '../../avatar/avatar.js';
 import { rankDay } from '../../rules/ranking.js';
+import { fetchDayForUsers } from '../../steps/sync.js';
 import { getPartyMembers } from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
 import { todayISO } from '../../util/date.js';
 import { avatarBadge, formatSteps, rankBadge, rankedAvatar } from '../components.js';
 import { h, onMount, s } from '../dom.js';
 import { iosInstallHint } from '../installHint.js';
+import { openProfile, personButton } from '../profileLink.js';
+import { openSheet } from '../sheet.js';
 import { partyGate } from './party.js';
 
 const T = STRINGS.race;
@@ -41,7 +44,7 @@ export async function renderRace({ state, steps, navigate }) {
   return h('div', { class: 'page page-race' },
     iosInstallHint(),
     partyBar(state, members),
-    stage(members, ranking, stepsById[meId] || 0, meId),
+    stage(members, ranking, stepsById[meId] || 0, meId, today),
     rankingsSection(members, ranking),
   );
 }
@@ -52,10 +55,10 @@ function partyBar(state, members) {
     h('a', { class: 'btn btn-promo btn-compact', attrs: { href: '#/profile/members' } },
       h('span', { class: 'btn-plus', attrs: { 'aria-hidden': 'true' }, text: '+' }), h('span', { text: STRINGS.party.inviteButton })),
     h('div', { class: 'party-members', attrs: { 'aria-label': T.partyMembers(state.party.name) } },
-      members.map((m) => h('span', { class: 'party-member' },
+      members.map((m) => personButton(m.id, STRINGS.profile.openProfile(m.isMe ? T.you : m.name || STRINGS.members.unnamed), [
         avatarBadge(m.avatar, { size: 'md' }),
         h('span', { class: 'party-member-name', text: m.isMe ? T.you : m.name || STRINGS.members.unnamed }),
-      )),
+      ], 'party-member')),
     ),
   );
 }
@@ -74,7 +77,7 @@ function tickStep(scaleMax) {
   return scaleMax <= 12000 ? 2000 : scaleMax <= 24000 ? 4000 : 6000;
 }
 
-function stage(members, ranking, mySteps, meId) {
+function stage(members, ranking, mySteps, meId, today) {
   const scaleMax = scaleFor(ranking);
   const xFor = (value) => WORLD_PAD + (Math.min(value, scaleMax) / scaleMax) * (WORLD_WIDTH - 2 * WORLD_PAD);
   const byId = new Map(members.map((m) => [m.id, m]));
@@ -101,7 +104,7 @@ function stage(members, ranking, mySteps, meId) {
     const lane = LANES[index % LANES.length];
     const runner = h('button', {
       class: `runner${m.isMe ? ' runner--me' : ''}`,
-      attrs: { type: 'button', 'aria-label': T.runnerLabel(m.isMe ? T.you : m.name || STRINGS.members.unnamed, formatSteps(row.value)) },
+      attrs: { type: 'button', 'aria-label': T.runnerOpen(m.isMe ? T.you : m.name || STRINGS.members.unnamed, formatSteps(row.value)) },
       dataset: { id: m.id },
     },
     h('span', { class: 'runner-bubble' }, formatSteps(row.value), rankBadge(row.rank)),
@@ -197,7 +200,16 @@ function stage(members, ranking, mySteps, meId) {
   };
   window.addEventListener('resize', onResize);
 
-  for (const [id, runner] of runners) runner.addEventListener('click', () => focusRunner(id, true));
+  // Tapping a runner opens their profile; runners standing on top of each other open a chooser
+  // sheet first (inspo "on two runners collision choose profile pop up").
+  for (const [id, runner] of runners) {
+    runner.addEventListener('click', () => {
+      const x = xFor(ranking.find((r) => r.id === id).value);
+      const group = ranking.filter((r) => Math.abs(xFor(r.value) - x) < OVERLAP_PX);
+      if (group.length > 1) runnerSheet(group, byId, today);
+      else openProfile(id);
+    });
+  }
   enableMouseDrag(world);
   enableRailDrag(rail, world);
 
@@ -211,6 +223,46 @@ function stage(members, ranking, mySteps, meId) {
     countUp(number, mySteps);
   }));
   return node;
+}
+
+/** Runners closer than this (world px) overlap on screen. */
+const OVERLAP_PX = 44;
+
+/** "5s", "12m", "3h", "2d" since an ISO timestamp. */
+export function formatAgo(iso, now = Date.now()) {
+  const sec = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
+  if (!Number.isFinite(sec)) return '';
+  if (sec < 60) return T.agoSeconds(sec);
+  if (sec < 3600) return T.agoMinutes(Math.floor(sec / 60));
+  if (sec < 86400) return T.agoHours(Math.floor(sec / 3600));
+  return T.agoDays(Math.floor(sec / 86400));
+}
+
+/** Bottom sheet listing overlapping runners: avatar, name, steps, when last updated. */
+function runnerSheet(group, byId, today) {
+  const agoEls = new Map();
+  const rows = group.map((row) => {
+    const m = byId.get(row.id);
+    const name = m.isMe ? T.you : m.name || STRINGS.members.unnamed;
+    const ago = h('span', { class: 'sheet-row-ago' });
+    agoEls.set(row.id, ago);
+    return h('li', {}, h('button', {
+      class: 'sheet-row', attrs: { type: 'button', 'aria-label': STRINGS.profile.openProfile(name) },
+      on: { click: () => openProfile(row.id) },
+    },
+    avatarBadge(m.avatar, { size: 'lg' }),
+    h('span', { class: 'sheet-row-main' }, h('span', { class: 'sheet-row-name', text: name })),
+    h('span', { class: 'sheet-row-side' }, h('b', { text: STRINGS.common.steps(formatSteps(row.value)) }), ago),
+    ));
+  });
+  openSheet(T.pickRunner, h('ul', { class: 'sheet-list' }, rows));
+  fetchDayForUsers(group.map((r) => r.id), today).then((rowsById) => {
+    if (!rowsById) return;
+    for (const [id, el] of agoEls) {
+      const r = rowsById.get(id);
+      if (r && r.updatedAt) el.textContent = T.updatedAgo(formatAgo(r.updatedAt));
+    }
+  }).catch(() => {});
 }
 
 /**
@@ -302,11 +354,11 @@ function rankingsSection(members, ranking) {
           sub = prev.value === row.value ? T.tied(prevName) : T.behind(formatSteps(prev.value - row.value), prevName);
         }
         return h('li', { class: `rank-row${m.isMe ? ' rank-row--me' : ''}` },
-          rankedAvatar(m.avatar, row.rank),
-          h('span', { class: 'rank-main' },
+          personButton(m.id, STRINGS.profile.openProfile(nameOf(m)), rankedAvatar(m.avatar, row.rank)),
+          personButton(m.id, STRINGS.profile.openProfile(nameOf(m)), [
             h('span', { class: 'rank-name', text: nameOf(m) }),
             h('span', { class: 'rank-sub', text: sub }),
-          ),
+          ], 'rank-main'),
           h('span', { class: 'rank-score', text: STRINGS.common.steps(formatSteps(row.value)) }),
         );
       }),

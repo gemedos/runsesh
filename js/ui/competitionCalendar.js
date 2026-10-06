@@ -8,6 +8,7 @@ import { formatDate, parseISODate, toISODate } from '../util/date.js';
 import { resultsList } from './competitionBlock.js';
 import { card, formatSteps, rankedAvatar } from './components.js';
 import { h } from './dom.js';
+import { personButton } from './profileLink.js';
 
 const T = STRINGS.competition;
 
@@ -119,11 +120,13 @@ export function dayDetail({ competition, day, today, rows, overall }) {
         else if (r.wonDay) sub = T.dayWinner;
         else if (r.points > 0) sub = T.dayPoints(r.points);
         return h('li', { class: `rank-row${r.isMe ? ' rank-row--me' : ''}${r.left ? ' rank-row--left' : ''}` },
-          rankedAvatar(r.avatar || DEFAULT_AVATAR, r.rank),
-          h('span', { class: 'rank-main' },
+          r.left ? rankedAvatar(r.avatar || DEFAULT_AVATAR, r.rank)
+            : personButton(r.id, STRINGS.profile.openProfile(r.name || T.someone), rankedAvatar(r.avatar || DEFAULT_AVATAR, r.rank)),
+          (r.left ? (children) => h('span', { class: 'rank-main' }, children)
+            : (children) => personButton(r.id, STRINGS.profile.openProfile(r.name || T.someone), children, 'rank-main'))([
             h('span', { class: 'rank-name', text: r.name || T.someone }),
             sub ? h('span', { class: 'rank-sub', text: sub }) : null,
-          ),
+          ]),
           h('span', { class: 'rank-score', text: r.left ? '–' : T.scoreSteps(formatSteps(r.value)) }),
         );
       })),

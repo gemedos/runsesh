@@ -6,7 +6,7 @@ import { validateAvatar } from '../avatar/avatar.js';
 import { cleanDisplayName, isTimezone } from '../auth/rules.js';
 import { getSupabase } from '../supabaseClient.js';
 
-const COLUMNS = 'id, display_name, avatar, timezone';
+const COLUMNS = 'id, display_name, avatar, timezone, created_at';
 
 function toProfile(row) {
   return Object.freeze({
@@ -15,7 +15,18 @@ function toProfile(row) {
     // Validated again on the way in: never trust stored data blindly.
     avatar: validateAvatar(row.avatar),
     timezone: isTimezone(row.timezone) ? row.timezone : 'UTC',
+    joinedAt: typeof row.created_at === 'string' && !Number.isNaN(Date.parse(row.created_at)) ? row.created_at : null,
   });
+}
+
+/**
+ * Another player's profile (name, avatar, join date). RLS only returns it for members of the
+ * caller's party; anyone else gives null.
+ */
+export async function fetchMemberProfile(userId) {
+  const { data, error } = await getSupabase().from('profiles').select('id, display_name, avatar, created_at').eq('id', userId).maybeSingle();
+  if (error || !data) return null;
+  return toProfile({ ...data, timezone: 'UTC' });
 }
 
 export async function fetchOwnProfile(userId) {

@@ -18,7 +18,7 @@ import { renderCompetitionHub } from './ui/pages/competitionHub.js';
 import { renderHealth } from './ui/pages/health.js';
 import { renderIphone } from './ui/pages/iphone.js';
 import { renderCreateParty, renderJoin, renderMembers, renderRules } from './ui/pages/party.js';
-import { renderProfile } from './ui/pages/profile.js';
+import { renderProfile, renderUserProfile } from './ui/pages/profile.js';
 import { renderRace } from './ui/pages/race.js';
 import { applyTheme } from './ui/theme.js';
 
@@ -38,6 +38,8 @@ const ROUTES = Object.freeze({
   join: { tab: 'race', render: renderJoin },
   competition: { tab: 'competition', render: renderCompetitionHub },
   profile: { tab: 'profile', render: renderProfile },
+  // Another player's profile; who it is lives in memory only (ui/profileLink.js), never in the URL.
+  user: { tab: 'profile', render: renderUserProfile },
   'profile/avatar': { tab: 'profile', render: renderAvatarEditor, ownsState: true },
   'profile/members': { tab: 'profile', render: renderMembers },
   'profile/rules': { tab: 'profile', render: renderRules },

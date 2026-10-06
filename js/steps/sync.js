@@ -56,6 +56,21 @@ export async function syncFromSource(source, userId, fromDay, toDay) {
   return { ok: discarded === 0, saved: rows.length, discarded };
 }
 
+/**
+ * One day for several players (the caller and their party members; RLS decides), with when
+ * each total was last updated. @returns {Promise<Map<string, {steps, updatedAt}>|null>}
+ */
+export async function fetchDayForUsers(userIds, day) {
+  if (!userIds.length) return new Map();
+  const { data, error } = await getSupabase()
+    .from('daily_steps')
+    .select('user_id, steps, updated_at')
+    .eq('day', day)
+    .in('user_id', userIds);
+  if (error || !Array.isArray(data)) return null;
+  return new Map(data.filter((r) => Number.isInteger(r.steps)).map((r) => [r.user_id, { steps: r.steps, updatedAt: r.updated_at }]));
+}
+
 /** Saved days of the signed-in user, or of a member of their party (RLS decides), newest first. */
 export async function fetchStepHistory(userId, fromDay, toDay) {
   const { data, error } = await getSupabase()
