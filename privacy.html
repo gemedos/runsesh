@@ -16,7 +16,7 @@
 
     
 
-    <p>Last updated: 05/10/2026</p>
+    <p>Last updated: 06/10/2026</p>
     <p>runsesh is a small app for step competitions between friends. This page explains, in plain language, what data runsesh collects, why, and what you can do about it.</p>
 
     <h2>Who runs runsesh</h2>
@@ -25,7 +25,9 @@
     <h2>What we collect</h2>
     <ul>
       <li><strong>Email address</strong>: to create your account, log you in and send account emails (confirmation, password reset).</li>
-      <li><strong>Display name</strong>: the name your party sees.</li>
+      <li><strong>Display name</strong>: the name your party and friends see.</li>
+      <li><strong>Usertag</strong> (@name): a unique name others use to find you and send you a friend invite. One is created for you; you can change it.</li>
+      <li><strong>Friends</strong>: who you invited or accepted as a friend, and when.</li>
       <li><strong>Avatar</strong>: the character you design (body color, hair, clothes, accessories).</li>
       <li><strong>Time zone</strong>: so your "today" matches your local day.</li>
       <li><strong>Daily step totals</strong>: one number per day, plus where it came from (typed in by you, sent from Health Connect on Android, or sent by an Apple Shortcut on iPhone).</li>
@@ -56,7 +58,13 @@
 
     <h2>Where it is stored</h2>
     <p>Your data is stored with Supabase (database and login service). West EU(ireland).</p>
-    <p>Other people can only see what the app shows them: members of your party see your display name, avatar, time zone and daily step totals, and the results of competitions you took part in. Nobody else can see your tokens.</p>
+    <p>Other people can only see what the app shows them:</p>
+    <ul>
+      <li><strong>Any signed-in player</strong> can find your <strong>usertag</strong> by searching (they see only the usertag, nothing else) and send you a friend invite.</li>
+      <li><strong>Your friends and the members of your party</strong> see your display name, usertag, avatar, when you joined and your daily step totals; party members also see your time zone and competition results.</li>
+      <li>Nobody else can see your steps, and nobody can see your tokens.</li>
+    </ul>
+    <p>You can remove a friend at any time; they lose access immediately.</p>
     <!-- TODO: mention the competition background photo (party leader's upload, visible to the party) and the data processing agreement / legal basis (GDPR) before launch. -->
     <!-- TODO: this page is a draft written for a hobby project; have it reviewed before real users join. -->
 

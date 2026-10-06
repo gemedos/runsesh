@@ -251,7 +251,10 @@ function runnerSheet(group, byId, today) {
       on: { click: () => openProfile(row.id) },
     },
     avatarBadge(m.avatar, { size: 'lg' }),
-    h('span', { class: 'sheet-row-main' }, h('span', { class: 'sheet-row-name', text: name })),
+    h('span', { class: 'sheet-row-main' },
+      h('span', { class: 'sheet-row-name', text: m.isMe ? m.name || name : name }),
+      m.handle ? h('span', { class: 'sheet-row-handle', text: `@${m.handle}` }) : null,
+    ),
     h('span', { class: 'sheet-row-side' }, h('b', { text: STRINGS.common.steps(formatSteps(row.value)) }), ago),
     ));
   });

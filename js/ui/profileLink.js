@@ -1,15 +1,22 @@
-// Opening another player's profile from anywhere (avatar or name).
-// The player's id is kept in memory only, never in the URL (CLAUDE.md §2.6): the route is just
-// "#/user". After a reload there is no player in memory, so that screen falls back to the
-// user's own profile. Who may be viewed is decided by RLS, not by this module.
+// Opening another player's profile from anywhere (avatar, name, or a usertag from search).
+// Who is being viewed is kept in memory only, never in the URL (CLAUDE.md §2.6): the route is
+// just "#/user". After a reload nobody is in memory, so that screen falls back to the user's own
+// profile. What may be shown is decided by RLS and the friend functions, not by this module.
 
-import { getState } from '../state/store.js';
+import { getState, subscribe } from '../state/store.js';
 import { h } from './dom.js';
 
-let viewedId = null;
+let viewed = null; // { id } or { handle }
+subscribe((s) => { if (!s.auth) viewed = null; }); // forget it on sign-out
 
-export function viewedUserId() {
-  return viewedId;
+/** @returns {{id?: string, handle?: string}|null} */
+export function viewedUser() {
+  return viewed;
+}
+
+function go() {
+  if (location.hash === '#/user') window.dispatchEvent(new HashChangeEvent('hashchange'));
+  else location.hash = '#/user';
 }
 
 /** Opens a player's profile; the signed-in user's own id opens their own Profile tab. */
@@ -19,13 +26,18 @@ export function openProfile(userId) {
     location.hash = '#/profile';
     return;
   }
-  viewedId = userId;
-  if (location.hash === '#/user') window.dispatchEvent(new HashChangeEvent('hashchange'));
-  else location.hash = '#/user';
+  viewed = { id: userId };
+  go();
+}
+
+/** Opens a profile from a usertag (search results), where the id is not known. */
+export function openProfileByHandle(handle) {
+  viewed = { handle };
+  go();
 }
 
 export function clearViewedUser() {
-  viewedId = null;
+  viewed = null;
 }
 
 /**

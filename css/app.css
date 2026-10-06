@@ -1179,3 +1179,33 @@ button.sc-day:focus-visible { outline: 3px solid var(--orange); outline-offset: 
   .sheet-backdrop { align-items: center; }
   .sheet { border-radius: 28px; }
 }
+
+/* Usertags and friends (docs/design.md §11) */
+.handle-input { display: flex; align-items: center; gap: 0; min-height: 50px; border-radius: 16px; border: 2px solid var(--line); background: var(--input-bg); }
+.handle-input:focus-within { border-color: var(--orange); }
+.handle-at { padding-left: 12px; font-weight: 700; color: var(--ink-soft); }
+.handle-input input[type='text'], .handle-input input[type='search'] {
+  flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px 8px 4px;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none; outline: none; font: inherit; font-size: 16px; color: var(--ink);
+}
+.handle-input input::-webkit-search-cancel-button { display: none; }
+.ph-handle--shifted { left: calc(var(--gutter) + 60px); top: 26px; }
+.ph-avatar--locked {
+  display: grid; place-items: center; width: 116px; height: 116px;
+  border-radius: 50%; background: var(--surface-2); color: var(--ink-soft);
+  border: 5px solid var(--bg); box-shadow: 0 0 0 2px var(--line);
+}
+.ph-avatar--locked .ptab-icon { width: 44px; height: 44px; }
+.tag--friend { background: var(--teal-bg); color: var(--teal); font-weight: 700; }
+.sheet-row-handle { color: var(--ink-soft); font-size: var(--fs-small); }
+
+.fr { display: flex; flex-direction: column; gap: 14px; }
+.fr-section { display: flex; flex-direction: column; gap: 6px; }
+.fr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fr-list > .hint { padding: 6px 0; }
+.fr-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.fr-row:last-child { border-bottom: 0; }
+.fr-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fr-handle { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.fr-handle { text-align: left; }
+.fr-person { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }

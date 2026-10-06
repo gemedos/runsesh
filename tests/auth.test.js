@@ -1,4 +1,4 @@
-import { checkEmail, checkPassword, cleanDisplayName, isTimezone, PASSWORD_MIN, safeNext } from '../js/auth/rules.js';
+import { checkEmail, checkPassword, cleanDisplayName, cleanHandle, isTimezone, PASSWORD_MIN, safeNext } from '../js/auth/rules.js';
 import { isValidEntry } from '../js/steps/sync.js';
 import { eq, test } from './harness.js';
 
@@ -42,4 +42,16 @@ test('steps entries: integers 0..100000 inside the day window only', () => {
   eq(isValidEntry({ day: '2026-10-10', steps: 12.5 }, now), false);
   eq(isValidEntry({ day: '2026-10-10', steps: '9000' }, now), false);
   eq(isValidEntry({ day: '2026-02-30', steps: 1 }, now), false);
+});
+
+test('usertags: 3 to 20 of a-z 0-9 . _, "@" and case ignored', () => {
+  eq(cleanHandle('@Antonio.Dob_1'), 'antonio.dob_1');
+  eq(cleanHandle('  runner2026 '), 'runner2026');
+  eq(cleanHandle('ab'), null);
+  eq(cleanHandle('a'.repeat(21)), null);
+  eq(cleanHandle('ana maria'), null);
+  eq(cleanHandle('josé'), null);
+  eq(cleanHandle('<img src=x>'), null);
+  eq(cleanHandle('@@double'), null);
+  eq(cleanHandle(42), null);
 });

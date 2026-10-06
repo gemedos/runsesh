@@ -103,6 +103,23 @@ What it does **not** protect against:
   aggregate.
 - **Backfill:** only today and the last 3 days are accepted, so older history cannot be sent.
 
+## Usertags and friends (migrations 17–18, approved 2026-10-06)
+- **Usertags** (`profiles.handle`): unique, 3–20 of `a-z 0-9 . _`, generated for every account and
+  changeable by the owner (column grant + the existing own-row update policy).
+- **Search** (`search_usertags`): prefix of 2+ characters, max 10 results, **returns only
+  usertags**, 60 searches per user per hour. Accepted trade-off (chosen by the owner): any
+  signed-in user can discover usertags by guessing prefixes. A user can also learn whether a
+  usertag exists by trying to take it.
+- **Friendships** (`public.friendships`): clients only read rows that involve them; every change
+  goes through SECURITY DEFINER functions that take the caller from `auth.uid()` and accept only
+  a usertag. 30 invites per user per day. Invites need acceptance; either side can decline,
+  cancel or remove. Deleted with either account.
+- **Visibility:** friends can read each other's profile and daily steps (new permissive policies
+  using `private.are_friends`), like party members already can; nobody can write another's
+  rows. A non-friend outside the party sees only the usertag in the app (the database does not
+  return anything else to them).
+- **IDs never in URLs:** the viewed profile is kept in memory (`#/user`).
+
 ## Parties and invite links (CLAUDE.md exception, approved 2026-10-05)
 - **One party per user** (primary key on `party_members.user_id`), one leader per party (unique
   index). Membership only changes through database functions that check the caller's role:

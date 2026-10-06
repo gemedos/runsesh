@@ -318,6 +318,56 @@ await C.rpc('join_party', { p_code: 'x'.repeat(24) });            // 'invalid_in
     no EXIF/GPS block (re-encoded in the browser). A non-image renamed to `.jpg` is rejected.
 19. Files over 2 MB or with another content type are rejected by the bucket itself.
 
+## 6e. Usertags and friends (migrations 17 and 18)
+Use the console session from "Setup" with **A** and **B** signed in as `A` and `B`
+(`const B = client(); await B.auth.signInWithPassword({ email: '<user B email>', password: '<user B password>' });`).
+**A and B must not be in the same party** for steps 3–5. `client()` is anon.
+
+1. **Usertags exist and are unique:**
+   ```js
+   const { data: a } = await A.from('profiles').select('handle').eq('id', A_ID).single();   // a.handle like 'name1234'
+   await A.from('profiles').update({ handle: 'a_test.01' }).eq('id', A_ID).select('handle'); // ok
+   await B.from('profiles').update({ handle: 'A_TEST.01' }).eq('id', B_ID);  // expect error 23514 (uppercase not allowed)
+   await B.from('profiles').update({ handle: 'a_test.01' }).eq('id', B_ID);  // expect error 23505 (taken)
+   await B.from('profiles').update({ handle: 'no spaces' }).eq('id', B_ID);  // expect error 23514
+   await A.from('profiles').update({ handle: 'stolen1' }).eq('id', B_ID).select(); // expect data: [] (not your row)
+   ```
+2. **Search returns only usertags, is limited, and needs a session:**
+   ```js
+   await A.rpc('search_usertags', { p_prefix: 'a' });           // expect { status: 'invalid', handles: [] }
+   const { data: s } = await B.rpc('search_usertags', { p_prefix: '@A_te' }); // expect status 'ok', handles includes 'a_test.01'
+   Object.keys(s);                                              // expect ['status', 'handles'] only: no ids, names or avatars
+   await client().rpc('search_usertags', { p_prefix: 'a_t' });  // anon: expect an error (permission denied)
+   ```
+   Calling it 61 times within an hour as one user returns `status: 'rate_limited'`.
+3. **Before being friends, A cannot read B:**
+   ```js
+   await A.from('profiles').select('display_name, avatar').eq('id', B_ID);       // expect data: []
+   await A.from('daily_steps').select('*').eq('user_id', B_ID);                 // expect data: []
+   await A.from('friendships').insert({ requester: A_ID, addressee: B_ID, status: 'accepted' }); // expect error 42501
+   ```
+   In the app (as A), search B's usertag and open it: only **@usertag, a lock and "Send friend invite"**.
+4. **Invite and accept:**
+   ```js
+   await A.rpc('send_friend_invite', { p_handle: '<B usertag>' });  // expect 'sent'
+   await A.rpc('send_friend_invite', { p_handle: '<B usertag>' });  // expect 'already_sent'
+   await A.rpc('send_friend_invite', { p_handle: 'a_test.01' });     // expect 'self'
+   await B.rpc('my_friend_requests');                               // expect [{ handle: 'a_test.01', direction: 'in', ... }] only
+   await B.from('friendships').update({ status: 'accepted' }).eq('requester', A_ID); // expect error 42501
+   await B.rpc('respond_friend_invite', { p_handle: 'a_test.01', p_accept: true });  // expect 'accepted'
+   await A.from('profiles').select('display_name, handle').eq('id', B_ID);          // expect B's row
+   await A.from('daily_steps').select('day, steps').eq('user_id', B_ID);            // expect B's days
+   await A.from('daily_steps').update({ steps: 1 }).eq('user_id', B_ID).select();   // expect data: [] (read only)
+   ```
+5. **Remove ends access immediately:**
+   ```js
+   await A.rpc('remove_friend', { p_handle: '<B usertag>' });   // expect 'removed'
+   await A.from('profiles').select('id').eq('id', B_ID);        // expect data: []
+   ```
+6. **Invite limit:** the 31st `send_friend_invite` by one user within a day returns `'rate_limited'`.
+7. **Day ranking:** in the app (as A, friends with B), Profile → Calendar → tap a day: "You vs your
+   friends" lists A and B with that day's steps; the calendar shows A's place on days A walked.
+
 ## 7. Logout clears everything
 1. Log in, browse every screen, save steps and an avatar.
 2. Log out (Profile → Login / Log out, or Account → Log out).

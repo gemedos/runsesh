@@ -1,19 +1,23 @@
 // Page 3: Profile (docs/design.md §11, inspo "profile structure").
-// Header: scenic strip, @usertag (when usertags exist), gear → Settings tab, big avatar, name,
-// "Joined <month>", Edit profile + wardrobe, "Connect your phone" call-out.
+// Header: scenic strip, @usertag, gear → Settings tab, big avatar, name, "Joined <month>",
+// Edit profile + wardrobe, "Connect your phone" call-out.
 // Icon tabs: Calendar (own steps day by day) · Memories · Friends · Settings.
-// Another player's profile ("#/user", id kept in memory) is read-only: Calendar and Memories.
-// Who can be viewed is decided by RLS: today, party members.
+// Another player's profile ("#/user", kept in memory) is read-only: Calendar and Memories, for
+// friends and party members (RLS decides). Anyone else sees only the @usertag, a lock and
+// "Send friend invite".
 
+import { fetchFriendRequests, fetchFriends, fetchStepsForUsers, sendFriendInvite } from '../../data/friendsRepo.js';
 import { listIngestTokens } from '../../data/ingestTokenRepo.js';
 import { fetchMemberProfile } from '../../data/profileRepo.js';
+import { rankDay } from '../../rules/ranking.js';
 import { getPartyMembers } from '../../state/store.js';
 import { STRINGS } from '../../strings.js';
 import { formatDate, todayISO, toISODate } from '../../util/date.js';
 import { avatarBadge, formatSteps, rankedAvatar } from '../components.js';
 import { h, s } from '../dom.js';
+import { friendsPanel, inviteMessage } from '../friendsPanel.js';
 import { isIos } from '../installHint.js';
-import { viewedUserId } from '../profileLink.js';
+import { personButton, viewedUser } from '../profileLink.js';
 import { DAILY_GOAL, stepsCalendar } from '../stepsCalendar.js';
 import { getTheme, setTheme, THEMES } from '../theme.js';
 
@@ -98,28 +102,79 @@ function comingSoon(iconName, title, text) {
   );
 }
 
-/** Day summary under the calendar: steps, % of the goal, and (own) you vs your friends. */
-function daySummary({ day, steps, today, person, isMe }) {
+/**
+ * Day summary under the calendar: steps and % of the goal; on the user's own profile also the
+ * ranking of you vs all your friends that day (their totals are readable: RLS, friends).
+ */
+async function daySummary({ day, steps, today, person, isMe }) {
   const pct = Math.round((steps / DAILY_GOAL) * 100);
+  let ranking = null;
+  if (isMe) {
+    const friends = (await fetchFriends()) || [];
+    const byUser = friends.length ? await fetchStepsForUsers(friends.map((f) => f.id), day, day) : new Map();
+    const people = [{ id: person.id, name: C.you, avatar: person.avatar, isMe: true }, ...friends.map((f) => ({ id: f.id, name: f.name || `@${f.handle}`, avatar: f.avatar, isMe: false }))];
+    const stepsById = { [person.id]: steps };
+    for (const f of friends) stepsById[f.id] = (byUser && byUser.get(f.id) && byUser.get(f.id).get(day)) || 0;
+    const byId = new Map(people.map((p) => [p.id, p]));
+    ranking = h('div', { class: 'sc-sum-rank' },
+      h('h4', { class: 'cal-sub-title', text: C.vsFriends }),
+      h('ol', { class: 'ranking' }, rankDay(stepsById, people.map((p) => p.id)).map((r) => {
+        const p = byId.get(r.id);
+        const avatar = rankedAvatar(p.avatar, r.rank);
+        const nameEl = h('span', { class: 'rank-name', text: p.name });
+        return h('li', { class: `rank-row${p.isMe ? ' rank-row--me' : ''}` },
+          p.isMe ? avatar : personButton(p.id, T.openProfile(p.name), avatar),
+          p.isMe ? h('span', { class: 'rank-main' }, nameEl) : personButton(p.id, T.openProfile(p.name), nameEl, 'rank-main'),
+          h('span', { class: 'rank-score', text: STRINGS.common.steps(formatSteps(r.value)) }),
+        );
+      })),
+      friends.length ? null : h('p', { class: 'hint', text: C.noFriendsYet }),
+    );
+  }
   return h('div', { class: 'sc-sum' },
     h('p', { class: 'sc-sum-date', text: formatDate(day) }),
     h('p', { class: 'sc-sum-steps' }, h('b', { text: formatSteps(steps) }), ' ', C.steps),
     h('p', { class: 'sc-sum-goal', text: C.goalLine(pct, formatSteps(DAILY_GOAL)) }),
     day === today ? h('p', { class: 'hint', text: C.todayRunning }) : null,
-    isMe ? h('div', { class: 'sc-sum-rank' },
-      h('h4', { class: 'cal-sub-title', text: C.vsFriends }),
-      h('ol', { class: 'ranking' }, h('li', { class: 'rank-row rank-row--me' },
-        rankedAvatar(person.avatar, 1),
-        h('span', { class: 'rank-main' }, h('span', { class: 'rank-name', text: C.you })),
-        h('span', { class: 'rank-score', text: STRINGS.common.steps(formatSteps(steps)) }),
-      )),
-      h('p', { class: 'hint', text: C.friendsSoon }),
-    ) : null,
+    ranking,
   );
 }
 
+/** Calendar stickers: the user's place among them + their friends on each day they walked. */
+async function ranksAmongFriends(userId, days) {
+  const friends = (await fetchFriends()) || [];
+  if (!friends.length || !days.length) return new Map();
+  const ids = [userId, ...friends.map((f) => f.id)];
+  const byUser = await fetchStepsForUsers(ids, days[0], days[days.length - 1]);
+  if (!byUser) return new Map();
+  const out = new Map();
+  for (const day of days) {
+    const stepsById = Object.fromEntries(ids.map((id) => [id, byUser.get(id).get(day) || 0]));
+    if (!stepsById[userId]) continue;
+    const mine = rankDay(stepsById, ids).find((r) => r.id === userId);
+    if (mine) out.set(day, mine.rank);
+  }
+  return out;
+}
+
+/** "Send friend invite" / "Friends" control on another player's profile. */
+function friendAction(handle, isFriend, toast) {
+  if (!handle) return null;
+  if (isFriend) return h('span', { class: 'tag tag--friend', text: T.friendsTag });
+  const button = h('button', { class: 'btn btn-primary ph-edit', text: T.sendInvite, attrs: { type: 'button' } });
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    const status = await sendFriendInvite(handle);
+    toast(inviteMessage(status));
+    if (['sent', 'already_sent'].includes(status)) button.textContent = T.inviteSentButton;
+    else if (['accepted', 'already_friends'].includes(status)) button.replaceWith(h('span', { class: 'tag tag--friend', text: T.friendsTag }));
+    else button.disabled = false;
+  });
+  return button;
+}
+
 // --- page --------------------------------------------------------------------------------
-function profilePage({ person, isMe }) {
+function profilePage({ person, isMe, toast, friendControl = null }) {
   const today = todayISO();
   const joinedDay = person.joinedAt ? toISODate(new Date(person.joinedAt)) : null;
   const tabs = isMe ? ['calendar', 'memories', 'friends', 'settings'] : ['calendar', 'memories'];
@@ -147,11 +202,12 @@ function profilePage({ person, isMe }) {
         joinedDay,
         today,
         renderSummary: (day, daySteps) => daySummary({ day, steps: daySteps, today, person, isMe }),
+        ranksFor: isMe ? (days) => ranksAmongFriends(person.id, days) : undefined,
       }));
     } else if (id === 'memories') {
       panel.replaceChildren(comingSoon('memories', T.memoriesTitle, isMe ? T.memoriesSoon : T.memoriesSoonOther));
     } else if (id === 'friends') {
-      panel.replaceChildren(comingSoon('friends', T.friendsTitle, T.friendsSoon));
+      panel.replaceChildren(friendsPanel({ toast }));
     } else {
       panel.replaceChildren(settingsPanel());
     }
@@ -184,13 +240,7 @@ function profilePage({ person, isMe }) {
 
   const name = person.displayName || T.noName;
   const header = h('div', { class: 'profile-identity' },
-    h('div', { class: 'ph-hero scene' },
-      isMe ? null : h('button', { class: 'ph-round ph-back', text: '‹', attrs: { type: 'button', 'aria-label': STRINGS.app.back }, on: { click: () => history.back() } }),
-      person.handle ? h('span', { class: 'ph-handle', text: `@${person.handle}` }) : null,
-      isMe ? h('div', { class: 'ph-actions' },
-        h('button', { class: 'ph-round', attrs: { type: 'button', 'aria-label': T.openSettings, title: T.openSettings }, on: { click: () => show('settings') } }, gearIcon()),
-      ) : null,
-    ),
+    hero(person.handle, isMe ? () => show('settings') : null),
     h('div', { class: 'ph-head' },
       isMe
         ? h('a', { class: 'ph-avatar', attrs: { href: '#/profile/avatar', 'aria-label': T.customize } }, avatarBadge(person.avatar, { size: 'xl' }))
@@ -201,6 +251,7 @@ function profilePage({ person, isMe }) {
         h('a', { class: 'btn btn-pill ph-edit', attrs: { href: '#/profile/account' }, text: T.editProfile }),
         h('a', { class: 'ph-round ph-round--outline', attrs: { href: '#/profile/avatar', 'aria-label': T.customizeButton, title: T.customizeButton } }, hangerIcon()),
       ) : null,
+      friendControl ? h('div', { class: 'ph-buttons' }, friendControl) : null,
       callout,
     ),
   );
@@ -212,34 +263,99 @@ function profilePage({ person, isMe }) {
   );
 }
 
-export function renderProfile({ state }) {
+/** Scenic header strip: back button (others), @usertag, gear (own). */
+function hero(handle, onSettings) {
+  return h('div', { class: 'ph-hero scene' },
+    onSettings ? null : h('button', { class: 'ph-round ph-back', text: '‹', attrs: { type: 'button', 'aria-label': STRINGS.app.back }, on: { click: () => history.back() } }),
+    handle ? h('span', { class: `ph-handle${onSettings ? '' : ' ph-handle--shifted'}`, text: `@${handle}` }) : null,
+    onSettings ? h('div', { class: 'ph-actions' },
+      h('button', { class: 'ph-round', attrs: { type: 'button', 'aria-label': T.openSettings, title: T.openSettings }, on: { click: onSettings } }, gearIcon()),
+    ) : null,
+  );
+}
+
+/**
+ * Locked profile: a player who is neither a friend nor in the user's party. Shows ONLY the
+ * @usertag, a lock, and "Send friend invite" (decided 2026-10-06).
+ */
+async function lockedProfile(handle, toast) {
+  const requests = await fetchFriendRequests();
+  const pending = requests && requests.find((r) => r.handle === handle);
+  let action;
+  if (pending && pending.direction === 'out') {
+    action = h('button', { class: 'btn btn-secondary', text: T.inviteSentButton, attrs: { type: 'button', disabled: true } });
+  } else {
+    action = friendAction(handle, false, toast);
+    if (pending && pending.direction === 'in') action.textContent = T.acceptInvite;
+  }
+  return h('div', { class: 'page page-profile' },
+    h('div', { class: 'profile-identity' },
+      hero(handle, null),
+      h('div', { class: 'ph-head' },
+        h('span', { class: 'ph-avatar ph-avatar--locked', attrs: { 'aria-hidden': 'true' } }, lockGlyph()),
+        h('h1', { class: 'profile-name', text: `@${handle}` }),
+      ),
+    ),
+    h('div', { class: 'profile-content' },
+      h('div', { class: 'ptab-empty' },
+        h('span', { class: 'ptab-empty-icon' }, lockGlyph()),
+        h('p', { class: 'ptab-empty-title', text: T.lockedTitle }),
+        h('p', { class: 'hint', text: T.lockedText }),
+        action,
+      ),
+    ),
+  );
+}
+
+function lockGlyph() {
+  return s('svg', { class: 'ptab-icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    s('rect', { x: 5, y: 10.5, width: 14, height: 10, rx: 3 }), s('path', { d: 'M8.5 10.5 V8 A3.5 3.5 0 0 1 15.5 8 V10.5' }));
+}
+
+export function renderProfile({ state, toast }) {
   const p = state.profile || {};
   return profilePage({
-    person: { id: state.auth.userId, displayName: p.displayName, avatar: state.avatar, joinedAt: p.joinedAt || null, handle: null },
+    person: { id: state.auth.userId, displayName: p.displayName, avatar: state.avatar, joinedAt: p.joinedAt || null, handle: p.handle || null },
     isMe: true,
+    toast,
   });
 }
 
-/** Another player's profile (read-only). Only party members can be opened for now. */
-export async function renderUserProfile({ state }) {
-  const id = viewedUserId();
-  if (!id || id === state.auth.userId) {
+/** Another player's profile: full (read-only) for friends and party members, locked otherwise. */
+export async function renderUserProfile({ state, toast }) {
+  const target = viewedUser();
+  const me = state.auth.userId;
+  const ownHandle = state.profile && state.profile.handle;
+  if (!target || target.id === me || (target.handle && target.handle === ownHandle)) {
     location.replace('#/profile');
     return h('div', { class: 'page' });
   }
-  const member = getPartyMembers(state).find((m) => m.id === id);
-  const profile = member ? await fetchMemberProfile(id) : null;
+
+  const friends = (await fetchFriends()) || [];
+  const members = getPartyMembers(state);
+  const known = target.id
+    ? friends.find((f) => f.id === target.id) || members.find((m) => m.id === target.id)
+    : friends.find((f) => f.handle === target.handle) || members.find((m) => m.handle === target.handle);
+  const id = target.id || (known && known.id);
+  const profile = id ? await fetchMemberProfile(id) : null; // RLS: friends and party members only
+
   if (!profile) {
+    const handle = target.handle || (known && known.handle);
+    if (handle) return lockedProfile(handle, toast);
     return h('div', { class: 'page page-profile' },
       h('div', { class: 'ptab-empty' },
-        h('span', { class: 'ptab-empty-icon' }, ICONS.friends()),
+        h('span', { class: 'ptab-empty-icon' }, lockGlyph()),
         h('p', { class: 'ptab-empty-title', text: T.privateTitle }),
         h('p', { class: 'hint', text: T.privateText }),
         h('button', { class: 'btn btn-pill', attrs: { type: 'button' }, text: STRINGS.app.back, on: { click: () => history.back() } }),
       ));
   }
+
+  const isFriend = friends.some((f) => f.id === id);
   return profilePage({
-    person: { id, displayName: profile.displayName || member.name, avatar: profile.avatar || member.avatar, joinedAt: profile.joinedAt, handle: null },
+    person: { id, displayName: profile.displayName, avatar: profile.avatar, joinedAt: profile.joinedAt, handle: profile.handle },
     isMe: false,
+    toast,
+    friendControl: friendAction(profile.handle, isFriend, toast),
   });
 }

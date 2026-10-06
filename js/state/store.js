@@ -8,8 +8,9 @@
 
 import { DEFAULT_AVATAR, validateAvatar } from '../avatar/avatar.js';
 import { fetchCompetitions, fetchResults, finalizeDue } from '../data/competitionRepo.js';
+import { clearFriendsCache } from '../data/friendsRepo.js';
 import { fetchMyParty } from '../data/partyRepo.js';
-import { updateOwnProfile } from '../data/profileRepo.js';
+import { updateOwnHandle, updateOwnProfile } from '../data/profileRepo.js';
 
 // Local data from Phase 1 (mock competitions etc.) is obsolete; remove it once.
 try { localStorage.removeItem('runsesh.local.v1'); } catch { /* ignore */ }
@@ -68,6 +69,7 @@ export function setProfile(profile) {
 /** In-memory reset after sign-out (local storage is wiped separately). */
 export function resetState() {
   state = createInitialState();
+  clearFriendsCache();
   for (const listener of listeners) listener(state);
 }
 
@@ -102,6 +104,16 @@ export async function saveDisplayName(name) {
   } catch {
     return false;
   }
+}
+
+/** @returns {Promise<'ok'|'invalid'|'taken'|'failed'>} */
+export async function saveHandle(input) {
+  if (!state.auth) return 'failed';
+  const res = await updateOwnHandle(state.auth.userId, input);
+  if (res.error) return res.error;
+  setProfile(res.profile);
+  refreshParty();
+  return 'ok';
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +170,7 @@ export function getPartyMembers(s = state) {
   return s.members.map((m) => ({
     id: m.id,
     name: m.id === me ? (s.profile && s.profile.displayName) || m.name : m.name,
+    handle: m.id === me ? (s.profile && s.profile.handle) || m.handle : m.handle,
     role: m.role,
     isMe: m.id === me,
     avatar: m.id === me ? s.avatar : m.avatar || DEFAULT_AVATAR,

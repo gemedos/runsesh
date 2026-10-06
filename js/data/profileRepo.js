@@ -3,10 +3,10 @@
 // for clarity, not for security.
 
 import { validateAvatar } from '../avatar/avatar.js';
-import { cleanDisplayName, isTimezone } from '../auth/rules.js';
+import { cleanDisplayName, cleanHandle, HANDLE_RE, isTimezone } from '../auth/rules.js';
 import { getSupabase } from '../supabaseClient.js';
 
-const COLUMNS = 'id, display_name, avatar, timezone, created_at';
+const COLUMNS = 'id, display_name, avatar, timezone, created_at, handle';
 
 function toProfile(row) {
   return Object.freeze({
@@ -16,15 +16,16 @@ function toProfile(row) {
     avatar: validateAvatar(row.avatar),
     timezone: isTimezone(row.timezone) ? row.timezone : 'UTC',
     joinedAt: typeof row.created_at === 'string' && !Number.isNaN(Date.parse(row.created_at)) ? row.created_at : null,
+    handle: typeof row.handle === 'string' && HANDLE_RE.test(row.handle) ? row.handle : null,
   });
 }
 
 /**
- * Another player's profile (name, avatar, join date). RLS only returns it for members of the
- * caller's party; anyone else gives null.
+ * Another player's profile (name, avatar, usertag, join date). RLS only returns it for party
+ * members and friends; anyone else gives null.
  */
 export async function fetchMemberProfile(userId) {
-  const { data, error } = await getSupabase().from('profiles').select('id, display_name, avatar, created_at').eq('id', userId).maybeSingle();
+  const { data, error } = await getSupabase().from('profiles').select('id, display_name, avatar, created_at, handle').eq('id', userId).maybeSingle();
   if (error || !data) return null;
   return toProfile({ ...data, timezone: 'UTC' });
 }
@@ -60,4 +61,20 @@ export async function updateOwnProfile(userId, patch) {
   const { data, error } = await getSupabase().from('profiles').update(row).eq('id', userId).select(COLUMNS).maybeSingle();
   if (error || !data) return null;
   return toProfile(data);
+}
+
+/**
+ * Changes the user's own usertag.
+ * @returns {Promise<{profile: object} | {error: 'invalid'|'taken'|'failed'}>}
+ */
+export async function updateOwnHandle(userId, input) {
+  const handle = cleanHandle(input);
+  if (!handle) return { error: 'invalid' };
+  try {
+    const { data, error } = await getSupabase().from('profiles').update({ handle }).eq('id', userId).select(COLUMNS).maybeSingle();
+    if (error) return { error: error.code === '23505' ? 'taken' : 'failed' };
+    return data ? { profile: toProfile(data) } : { error: 'failed' };
+  } catch {
+    return { error: 'failed' };
+  }
 }
