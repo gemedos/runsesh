@@ -16,6 +16,7 @@ import { formatDate, todayISO, toISODate } from '../../util/date.js';
 import { avatarBadge, formatSteps, rankedAvatar } from '../components.js';
 import { h, s } from '../dom.js';
 import { friendsPanel, inviteMessage } from '../friendsPanel.js';
+import { memoriesPanel } from '../memories.js';
 import { isIos } from '../installHint.js';
 import { personButton, viewedUser } from '../profileLink.js';
 import { DAILY_GOAL, stepsCalendar } from '../stepsCalendar.js';
@@ -90,15 +91,6 @@ function settingsPanel() {
       navItem(T.health, 'profile/health'),
       isIos() ? navItem(STRINGS.iphone.title, 'profile/iphone') : null,
     ], true),
-  );
-}
-
-// --- other tab bodies --------------------------------------------------------------------
-function comingSoon(iconName, title, text) {
-  return h('div', { class: 'ptab-empty' },
-    h('span', { class: 'ptab-empty-icon' }, ICONS[iconName]()),
-    h('p', { class: 'ptab-empty-title', text: title }),
-    h('p', { class: 'hint', text }),
   );
 }
 
@@ -205,7 +197,10 @@ function profilePage({ person, isMe, toast, friendControl = null }) {
         ranksFor: isMe ? (days) => ranksAmongFriends(person.id, days) : undefined,
       }));
     } else if (id === 'memories') {
-      panel.replaceChildren(comingSoon('memories', T.memoriesTitle, isMe ? T.memoriesSoon : T.memoriesSoonOther));
+      panel.replaceChildren(memoriesPanel({
+        owner: { id: person.id, name: isMe ? C.you : person.displayName || T.noName, handle: person.handle, avatar: person.avatar, isMe },
+        toast,
+      }));
     } else if (id === 'friends') {
       panel.replaceChildren(friendsPanel({ toast }));
     } else {

@@ -13,6 +13,7 @@ import { h, onMount, s } from '../dom.js';
 import { iosInstallHint } from '../installHint.js';
 import { openProfile, personButton } from '../profileLink.js';
 import { openSheet } from '../sheet.js';
+import { todayMemoriesStrip } from '../memories.js';
 import { partyGate } from './party.js';
 
 const T = STRINGS.race;
@@ -29,7 +30,7 @@ const LANES = [
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export async function renderRace({ state, steps, navigate }) {
+export async function renderRace({ state, steps, navigate, toast }) {
   // Not in a party yet (or still loading): offer to create or join one.
   const gate = partyGate(state, navigate);
   if (gate) return h('div', { class: 'page page-race' }, iosInstallHint(), gate);
@@ -45,6 +46,7 @@ export async function renderRace({ state, steps, navigate }) {
     iosInstallHint(),
     partyBar(state, members),
     stage(members, ranking, stepsById[meId] || 0, meId, today),
+    todayMemoriesStrip({ members, toast }),
     rankingsSection(members, ranking),
   );
 }

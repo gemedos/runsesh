@@ -368,6 +368,41 @@ Use the console session from "Setup" with **A** and **B** signed in as `A` and `
 7. **Day ranking:** in the app (as A, friends with B), Profile → Calendar → tap a day: "You vs your
    friends" lists A and B with that day's steps; the calendar shows A's place on days A walked.
 
+## 6f. Memories (migration 19)
+Console session with **A** and **B** (as in 6e); **C** is a third test account that is neither
+A's friend nor in A's party. Use a small JPEG `blob` (for example from
+`await (await fetch('icons/icon-192.png')).blob()` re-encoded by posting through the app first).
+
+1. **Post through the app** (as A): Profile → Memories → Add a memory. The photo appears under
+   "Today", the counter shows "2 of 3 left today". In the dashboard: one `memories` row for A and a
+   file `memories/<A id>/<uuid>.jpg`. Download it: the file has **no EXIF/GPS** (re-encoded JPEG).
+2. **Limit:** post 3 photos, the 4th says "You already posted 3 memories today"; directly:
+   ```js
+   await A.from('memories').insert({ id: crypto.randomUUID(), user_id: A_ID, day: today, path: `${A_ID}/${crypto.randomUUID()}.jpg` });
+   // expect error 23514 (memory_limit)
+   ```
+3. **Only today, only own rows:**
+   ```js
+   await A.from('memories').insert({ user_id: A_ID, day: shift(-3), path: `${A_ID}/${crypto.randomUUID()}.jpg` }); // expect error 42501
+   await A.from('memories').insert({ user_id: B_ID, day: today, path: `${B_ID}/${crypto.randomUUID()}.jpg` });   // expect error 42501
+   await A.from('memories').update({ day: shift(-1) }).eq('user_id', A_ID);                                      // expect error 42501
+   ```
+4. **No files without a row:**
+   ```js
+   await A.storage.from('memories').upload(`${A_ID}/${crypto.randomUUID()}.jpg`, blob, { contentType: 'image/jpeg' }); // expect an error (RLS)
+   await A.storage.from('memories').upload(`${B_ID}/${crypto.randomUUID()}.jpg`, blob, { contentType: 'image/jpeg' }); // expect an error
+   ```
+   Uploading a PNG or a file over 2 MB to an own row's path is refused by the bucket.
+5. **Who can see:** as B (A's friend or party member) `await B.from('memories').select('path').eq('user_id', A_ID)`
+   lists A's memories and `createSignedUrl` works for them. As C both return nothing / an error.
+   Logged out (`client()`): `select` gives error 42501. After A removes B as a friend (and they share
+   no party), B sees nothing any more.
+6. **Delete:** A deletes a memory in the app: the row and the file are gone; B cannot delete A's:
+   `await B.from('memories').delete({ count: 'exact' }).eq('user_id', A_ID)` → `count: 0`;
+   `await B.storage.from('memories').remove([<A path>])` removes nothing.
+7. **Race page:** A's party members see A's photos of today in "Today's memories"; tapping one opens
+   it full size with A's avatar and @usertag. Nothing is cached by the service worker (cross-origin).
+
 ## 7. Logout clears everything
 1. Log in, browse every screen, save steps and an avatar.
 2. Log out (Profile → Login / Log out, or Account → Log out).
